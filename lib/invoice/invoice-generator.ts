@@ -144,9 +144,16 @@ export async function getInvoiceData(orderId: string): Promise<InvoiceData | nul
         const qty = safeNum(item.quantity);
         const unit = safeNum(item.unit_price ?? item.price);
         const line = safeNum(item.total_price ?? item.total ?? qty * unit);
+        const meta = [
+          item.color_name ? `Color: ${String(item.color_name)}` : null,
+          item.size ? `Size: ${String(item.size)}` : null,
+        ]
+          .filter(Boolean)
+          .join(' • ');
+        const name = String(item.product_name || item.name || item.title || 'Product');
 
         return {
-          name: String(item.product_name || item.name || item.title || 'Product'),
+          name: meta ? `${name} (${meta})` : name,
           quantity: qty,
           price: unit,
           total: line,

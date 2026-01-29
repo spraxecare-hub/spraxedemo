@@ -116,6 +116,7 @@ export interface CartItem {
   user_id: string;
   product_id: string;
   quantity: number;
+  size?: string | null;
   created_at: string;
   updated_at: string;
   product?: Product;
@@ -152,6 +153,8 @@ export interface OrderItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+  size?: string | null;
+  color_name?: string | null;
   created_at: string;
 }
 
