@@ -104,7 +104,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </>
         ) : null}
       </head>
-      <body className="min-h-screen bg-white text-gray-900 antialiased font-sans">
+      <body className="min-h-screen bg-white text-gray-900 antialiased font-sans overflow-x-hidden">
         {/* Skip link for keyboard users */}
         <a
           href="#main-content"

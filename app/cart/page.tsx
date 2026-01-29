@@ -9,7 +9,6 @@ import { useCart } from '@/lib/cart/cart-context';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { SafeImage } from '@/components/ui/safe-image';
-import { TrustBadges } from '@/components/ui/trust-badges';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -818,7 +817,7 @@ export default function CartPage() {
                 Checkout
                 <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-xs text-gray-700 border">
                   <Sparkles className="h-3 w-3 text-blue-900" />
-                  Fast & Secure
+                  Secure checkout
                 </span>
               </div>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">Review your order</h1>
@@ -859,13 +858,15 @@ export default function CartPage() {
         ) : (
           <div className="space-y-6">
             {checkoutStep === 1 && (
-              <Card className="shadow-md border-blue-100 overflow-hidden">
-                <CardHeader className="bg-white border-b">
-                  <CardTitle className="text-base text-gray-900">Step 1: Contact & Address</CardTitle>
-                  <div className="text-xs text-gray-500">Add your delivery details before payment.</div>
-                </CardHeader>
-                <CardContent className="p-5 space-y-5">
-                  <TrustBadges variant="compact" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
+                <div className="lg:col-span-2 order-1">
+                  <Card className="shadow-md border-blue-100 overflow-hidden">
+                    <CardHeader className="bg-white border-b">
+                      <CardTitle className="text-base text-gray-900">Step 1: Contact & Address</CardTitle>
+                      <div className="text-xs text-gray-500">Add your delivery details before payment.</div>
+                      <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
+                    </CardHeader>
+                    <CardContent className="p-4 space-y-4">
 
                   {/* Full Name */}
                   <div className="rounded-xl border bg-gray-50/60 p-4">
@@ -1052,21 +1053,26 @@ export default function CartPage() {
                       Continue to Payment
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="lg:col-span-1 order-2 lg:sticky lg:top-24 lg:self-start">
+                {cartItemsPanel}
+              </div>
+            </div>
             )}
 
             {checkoutStep === 2 && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
                 <div className="lg:col-span-2 order-1">
                   <Card className="shadow-md border-blue-100 overflow-hidden">
                     <CardHeader className="bg-white border-b">
                       <CardTitle className="text-base text-gray-900">Step 2: Payment & Shipping</CardTitle>
                       <div className="text-xs text-gray-500">Choose how you want to pay and where to deliver.</div>
+                      <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
                     </CardHeader>
 
-                    <CardContent className="p-5 space-y-5">
-                      <TrustBadges variant="compact" />
+                    <CardContent className="p-4 space-y-4">
 
                       {/* ✅ Payment selection */}
                       <div className="space-y-2">
@@ -1296,15 +1302,16 @@ export default function CartPage() {
             )}
 
             {checkoutStep === 3 && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
                 <div className="lg:col-span-2 order-1">
                   <Card className="shadow-md border-blue-100 overflow-hidden">
                     <CardHeader className="bg-white border-b">
                       <CardTitle className="text-base text-gray-900">Step 3: Review & Confirm</CardTitle>
                       <div className="text-xs text-gray-500">Review everything before placing your order.</div>
+                      <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
                     </CardHeader>
 
-                    <CardContent className="p-5 space-y-5">
+                    <CardContent className="p-4 space-y-4">
                       <div className="rounded-xl border bg-gray-50/60 p-4">
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-sm font-semibold text-gray-800">Contact & Address</div>

@@ -194,8 +194,7 @@ function AuthForms({
         {/* PHONE TAB */}
         <TabsContent value="phone" className="space-y-4">
           <div className="rounded-xl border bg-blue-50/60 p-4 text-sm text-blue-950">
-            <div className="font-semibold">Please continue with email.</div>
-            <div className="text-xs text-blue-900/70 mt-1">Login with number coming soon!</div>
+            <div className="font-semibold">This feature is coming soon! Use email instead.</div>
           </div>
           <Button
             onClick={() => resetOnTabSwitch('email')}
