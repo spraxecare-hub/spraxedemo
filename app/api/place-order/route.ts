@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
-type ItemPayload = { product_id: string; quantity: number };
+type ItemPayload = { product_id: string; quantity: number; size?: string | null };
 
 type GuestPayload = {
   full_name: string;
@@ -189,7 +189,7 @@ export async function POST(req: Request) {
 
     const { data: products, error: prodErr } = await supabaseAdmin
       .from('products')
-      .select('id, name, sku, price, stock_quantity')
+      .select('id, name, sku, price, stock_quantity, color_name')
       .in('id', productIds);
 
     if (prodErr || !products?.length) {
@@ -205,6 +205,7 @@ export async function POST(req: Request) {
     for (const it of items) {
       const pid = String(it.product_id || '');
       const qty = safeInt(it.quantity, 0);
+      const size = String((it as any).size || '').trim() || null;
       if (!pid || qty <= 0) continue;
 
       const p = productMap.get(pid);
@@ -231,6 +232,8 @@ export async function POST(req: Request) {
         quantity: qty,
         unit_price: unit,
         total_price: line,
+        size,
+        color_name: String(p.color_name || '') || null,
       });
     }
 

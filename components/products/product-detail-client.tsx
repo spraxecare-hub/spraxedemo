@@ -45,6 +45,14 @@ import {
   GitCompare,
 } from 'lucide-react';
 
+const SIZE_OPTIONS = ['S', 'M', 'L', 'XL'];
+const isClothingCategory = (name?: string | null, slug?: string | null) => {
+  const hay = `${name || ''} ${slug || ''}`.toLowerCase();
+  const isGender = /(men|mens|women|womens|woman|female|male)/i.test(hay);
+  const isClothing = /(cloth|clothing|apparel|fashion|wear)/i.test(hay);
+  return isGender && isClothing;
+};
+
 type ProductEx = Product & {
   retail_price?: number | null;
   sku?: string | null;
@@ -984,6 +992,7 @@ export default function ProductDetailClient({
   // Manual specs (admin-defined) + color variants
   const [manualSpecs, setManualSpecs] = useState<ManualSpecRow[]>([]);
   const [variants, setVariants] = useState<ProductEx[]>([]);
+  const [selectedSize, setSelectedSize] = useState('');
 
 
   // Reviews stats for header stars
@@ -1000,6 +1009,15 @@ export default function ProductDetailClient({
   const colorGroupId = (product as any)?.color_group_id as string | null | undefined;
 
   const inCompare = product ? isInCompare(product.id) : false;
+
+  const isClothing = useMemo(
+    () => categoryChain.some((cat) => isClothingCategory(cat?.name, cat?.slug)),
+    [categoryChain]
+  );
+
+  useEffect(() => {
+    setSelectedSize('');
+  }, [product?.id]);
 
   const handleToggleCompare = () => {
     if (!product) return;
@@ -1326,32 +1344,43 @@ export default function ProductDetailClient({
   };
 
   const handleAddToCart = async () => {
-    if (!product) return;
+    if (!product) return false;
+
+    if (isClothing && !selectedSize) {
+      toast({
+        title: 'Select a size',
+        description: 'Please choose a size before adding this item to your cart.',
+        variant: 'destructive',
+      });
+      return false;
+    }
 
     const safeQty = clamp(quantity, 1, maxQty || 1);
 
     if (maxQty === 0) {
       toast({ title: 'Out of Stock', description: 'This product is currently unavailable.', variant: 'destructive' });
-      return;
+      return false;
     }
 
     setAdding(true);
     try {
-      await addToCartContext(product.id, safeQty);
+      await addToCartContext(product.id, safeQty, { size: selectedSize || null });
       toast({
         title: 'Added to Cart',
         description: `${product.name} (${safeQty} ${(product as any).unit || ''}) added to your cart`,
       });
+      return true;
     } catch {
       toast({ title: 'Error', description: 'Failed to add to cart.', variant: 'destructive' });
+      return false;
     } finally {
       setAdding(false);
     }
   };
 
   const handleBuyNow = async () => {
-    await handleAddToCart();
-    router.push('/cart');
+    const ok = await handleAddToCart();
+    if (ok) router.push('/cart');
   };
 
   const handleContactSeller = () => {
@@ -1952,6 +1981,31 @@ export default function ProductDetailClient({
                     </div>
                   )}
 
+                  {isClothing && (
+                    <div className="mt-4">
+                      <Label className="text-sm text-gray-700">Size</Label>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {SIZE_OPTIONS.map((size) => {
+                          const active = selectedSize === size;
+                          return (
+                            <button
+                              key={size}
+                              type="button"
+                              onClick={() => setSelectedSize(size)}
+                              className={[
+                                'inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold transition',
+                                active ? 'border-blue-700 bg-blue-50 text-blue-900' : 'border-gray-200 bg-white hover:border-gray-300',
+                              ].join(' ')}
+                            >
+                              {size}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {!selectedSize && <div className="mt-2 text-xs text-red-600">Please select a size to continue.</div>}
+                    </div>
+                  )}
+
                   <Separator className="my-5" />
 
                   <div className="space-y-2">
@@ -2006,35 +2060,22 @@ export default function ProductDetailClient({
                   <div className="mt-5 space-y-3">
                     <Button
                       className="w-full bg-blue-900 hover:bg-blue-800 h-11 sm:h-12 rounded-xl text-sm sm:text-base font-extrabold"
-                      onClick={handleAddToCart}
-                      disabled={adding || outOfStock}
+                      onClick={handleBuyNow}
+                      disabled={adding || outOfStock || (isClothing && !selectedSize)}
                     >
-                      <ShoppingCart className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                      {adding ? 'Adding...' : 'Add to Cart'}
+                      <CreditCard className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                      {adding ? 'Adding...' : 'Buy Now'}
                     </Button>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        variant="outline"
-                        onClick={handleBuyNow}
-                        disabled={adding || outOfStock}
-                        className="h-10 sm:h-11 rounded-xl border-blue-900 text-blue-900 hover:bg-blue-50 font-semibold bg-white text-sm"
-                        type="button"
-                      >
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Buy now
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        onClick={handleContactSeller}
-                        className="h-10 sm:h-11 rounded-xl border-green-600 text-green-600 hover:bg-green-50 font-semibold bg-white text-sm"
-                        type="button"
-                      >
-                        <MessageCircle className="mr-2 h-4 w-4" />
-                        WhatsApp
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={handleContactSeller}
+                      className="w-full h-10 sm:h-11 rounded-xl border-green-600 text-green-600 hover:bg-green-50 font-semibold bg-white text-sm"
+                      type="button"
+                    >
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      WhatsApp
+                    </Button>
 
                     <div className="grid grid-cols-2 gap-3">
                       <Button variant="outline" onClick={toggleWishlist} className="h-10 sm:h-11 rounded-xl bg-white font-semibold text-sm" type="button">
@@ -2195,11 +2236,11 @@ export default function ProductDetailClient({
 
           <Button
             className="flex-1 bg-blue-900 hover:bg-blue-800 h-11 rounded-xl font-extrabold"
-            onClick={handleAddToCart}
-            disabled={adding || outOfStock}
+            onClick={handleBuyNow}
+            disabled={adding || outOfStock || (isClothing && !selectedSize)}
           >
-            <ShoppingCart className="mr-2 h-5 w-5" />
-            {adding ? 'Adding...' : 'Add'}
+            <CreditCard className="mr-2 h-5 w-5" />
+            {adding ? 'Adding...' : 'Buy Now'}
           </Button>
 
           <Button variant="outline" className="h-11 rounded-xl bg-white" onClick={toggleWishlist} aria-label="Wishlist" type="button">

@@ -64,7 +64,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ShoppingCart, Package, ChevronRight, Sparkles, TrendingUp, Heart, X } from 'lucide-react';
+import { Package, ChevronRight, Sparkles, TrendingUp, Heart, X, CreditCard } from 'lucide-react';
 import {
   Carousel,
   CarouselContent,
@@ -490,10 +490,11 @@ export default function HomePageClient({
     // Disabled to reduce background work and improve smoothness.
   }, [infoCarouselApi, infoCarouselImages?.length]);
 
-  const handleAddToCart = async (productId: string, productName: string) => {
+  const handleBuyNow = async (productId: string, productName: string) => {
     try {
       await addToCart(productId, 1);
-      toast({ title: 'Added to Cart', description: `${productName} added to your cart` });
+      toast({ title: 'Ready to checkout', description: `${productName} added to your cart` });
+      router.push('/cart');
     } catch {
       toast({ title: 'Error', description: 'Failed to add to cart', variant: 'destructive' });
     }
@@ -712,14 +713,14 @@ Whether you’re enjoying music on your daily commute or relaxing at home, our a
 
               <Button
                 onClick={() => {
-                  handleAddToCart(product.id, product.name);
+                  handleBuyNow(product.id, product.name);
                 }}
                 disabled={outOfStock}
                 className="mt-1.5 sm:mt-2 md:mt-3 w-full h-7 sm:h-8 md:h-9 rounded-lg md:rounded-xl font-semibold text-[11px] sm:text-sm"
                 size="sm"
               >
-                <ShoppingCart className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
-                {outOfStock ? 'Out of stock' : 'Add to Cart'}
+                <CreditCard className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
+                {outOfStock ? 'Out of stock' : 'Buy Now'}
               </Button>
             </div>
           </div>
@@ -762,7 +763,7 @@ Whether you’re enjoying music on your daily commute or relaxing at home, our a
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-white overflow-x-hidden">
       <Header />
 
       {/* Hero */}

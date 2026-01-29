@@ -9,7 +9,6 @@ import { useCart } from '@/lib/cart/cart-context';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { SafeImage } from '@/components/ui/safe-image';
-import { TrustBadges } from '@/components/ui/trust-badges';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,6 +43,14 @@ const BKASH_NUMBER = '01XXXXXXXXX';
 
 // ✅ Put your bKash logo here: /public/payments/bkash.svg
 const BKASH_LOGO_PATH = '/payments/bkash.svg';
+const SIZE_OPTIONS = ['S', 'M', 'L', 'XL'];
+
+const isClothingCategory = (name?: string | null, slug?: string | null) => {
+  const hay = `${name || ''} ${slug || ''}`.toLowerCase();
+  const isGender = /(men|mens|women|womens|woman|female|male)/i.test(hay);
+  const isClothing = /(cloth|clothing|apparel|fashion|wear)/i.test(hay);
+  return isGender && isClothing;
+};
 
 type VoucherRow = {
   code: string;
@@ -160,7 +167,7 @@ function PaymentOption({
 
 export default function CartPage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth();
-  const { items, removeItem, updateQuantity, subtotal, clearCart, loading: cartLoading } = useCart();
+  const { items, removeItem, updateQuantity, updateItemSize, subtotal, clearCart, loading: cartLoading } = useCart();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -189,6 +196,7 @@ export default function CartPage() {
   const [voucherLoading, setVoucherLoading] = useState(false);
 
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<1 | 2 | 3>(1);
 
   useEffect(() => {
     if (user) refreshProfile();
@@ -266,9 +274,15 @@ export default function CartPage() {
   const isGuestComplete = guestNameOk && guestPhoneOk && guestAddressOk && guestZipOk;
 
   const cartCount = items.length;
+  const missingSize = items.some(
+    (item) =>
+      isClothingCategory(item.product?.category_name, item.product?.category_slug) && !String(item.size || '').trim()
+  );
 
   const trxOk = paymentMethod !== 'bkash' || !!trxId.trim();
-  const canCheckout = cartCount > 0 && !isPlacingOrder && trxOk && (user ? isProfileComplete : isGuestComplete);
+  const canCheckout =
+    cartCount > 0 && !isPlacingOrder && trxOk && !missingSize && (user ? isProfileComplete : isGuestComplete);
+  const infoReady = user ? isProfileComplete : isGuestComplete;
 
   const applyVoucher = async () => {
     const code = voucherInput.trim().toUpperCase();
@@ -353,6 +367,15 @@ export default function CartPage() {
   };
 
   const handleConfirmOrder = async () => {
+    if (missingSize) {
+      toast({
+        title: 'Size required',
+        description: 'Please select a size for each clothing item before placing the order.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // ✅ Require TRX ID if bKash selected
     if (paymentMethod === 'bkash' && !trxId.trim()) {
       toast({
@@ -427,7 +450,7 @@ export default function CartPage() {
       const token = data?.session?.access_token;
 
       const payload = {
-        items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
+        items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity, size: i.size ?? null })),
         deliveryLocation,
         shippingSpeed,
         discountCode: voucher?.code || null,
@@ -507,6 +530,237 @@ export default function CartPage() {
     }
   };
 
+  const handleContinueToPayment = () => {
+    if (!infoReady) {
+      toast({
+        title: 'Complete your details',
+        description: 'Please fill in your name, phone number, and address before continuing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setCheckoutStep(2);
+  };
+
+  const handleContinueToConfirm = () => {
+    if (!trxOk) {
+      toast({
+        title: 'Payment details required',
+        description: 'Please enter your bKash TRX ID to continue.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (missingSize) {
+      toast({
+        title: 'Size required',
+        description: 'Select a size for each clothing item before continuing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setCheckoutStep(3);
+  };
+
+  const cartItemsPanel = (
+    <div className="space-y-6">
+      {/* Cart header actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 rounded-full bg-white border flex items-center justify-center shadow-sm">
+            <ShoppingBag className="h-4 w-4 text-blue-900" />
+          </div>
+          <div>
+            <div className="text-sm text-gray-600">Cart Items</div>
+            <div className="text-lg font-bold text-gray-900">
+              {cartCount} item{cartCount > 1 ? 's' : ''}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link href="/products">
+            <Button variant="outline" className="h-9">
+              Continue Shopping
+            </Button>
+          </Link>
+          <Button
+            variant="ghost"
+            className="h-9 text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={() => clearCart()}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Clear Cart
+          </Button>
+        </div>
+      </div>
+
+      {missingSize && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Size required</AlertTitle>
+          <AlertDescription className="text-xs">
+            Select a size for each clothing item to continue checkout.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Cart Items Card */}
+      <Card className="shadow-sm">
+        <CardHeader className="border-b bg-white">
+          <CardTitle className="text-base text-gray-900">Items</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="divide-y lg:max-h-[520px] lg:overflow-y-auto">
+            {items.map((item) => {
+              const price = Number(item.product?.price || 0);
+              const lineTotal = price * item.quantity;
+              const colorName = String(item.product?.color_name || '').trim();
+              const isClothing = isClothingCategory(item.product?.category_name, item.product?.category_slug);
+
+              return (
+                <div key={item.id} className="p-4 sm:p-5">
+                  <div className="flex gap-4">
+                    <div className="relative h-20 w-20 sm:h-24 sm:w-24 flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                      {item.product?.images?.[0] ? (
+                        <SafeImage
+                          src={item.product.images[0]}
+                          alt={item.product.name}
+                          fill
+                          sizes="96px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">
+                          No image
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-gray-900 truncate">{item.product?.name}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            Unit price: <span className="font-medium text-gray-700">{fmtBDT(price)}</span>
+                          </div>
+                          {colorName && (
+                            <div className="mt-1 inline-flex items-center gap-2 text-xs text-gray-600">
+                              <span className="h-2.5 w-2.5 rounded-full border" style={item.product?.color_hex ? { backgroundColor: item.product.color_hex } : undefined} />
+                              Color: <span className="font-semibold text-gray-800">{colorName}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-gray-900">{fmtBDT(lineTotal)}</div>
+                          <div className="text-xs text-gray-500">Line total</div>
+                        </div>
+                      </div>
+
+                      {isClothing && (
+                        <div className="mt-3">
+                          <div className="text-xs font-semibold text-gray-700">Size</div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {SIZE_OPTIONS.map((size) => {
+                              const active = item.size === size;
+                              return (
+                                <button
+                                  key={size}
+                                  type="button"
+                                  onClick={() => updateItemSize(item.id, size)}
+                                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                                    active
+                                      ? 'border-blue-700 bg-blue-50 text-blue-900'
+                                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                  }`}
+                                >
+                                  {size}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {!item.size && (
+                            <div className="mt-1 text-xs text-red-600">Select a size to continue checkout.</div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        {/* Quantity control */}
+                        <div className="inline-flex items-center rounded-lg border bg-white shadow-sm overflow-hidden">
+                          <button
+                            className="h-9 w-10 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            disabled={item.quantity <= 1}
+                            aria-label="Decrease quantity"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <div className="h-9 min-w-[44px] px-3 flex items-center justify-center text-sm font-semibold text-gray-900 border-x">
+                            {item.quantity}
+                          </div>
+                          <button
+                            className="h-9 w-10 flex items-center justify-center hover:bg-gray-50"
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            aria-label="Increase quantity"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => removeItem(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Trust / info band */}
+      <Card className="shadow-sm border-blue-100">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5 text-blue-900" />
+              </div>
+              <div>
+                <div className="font-semibold text-gray-900">Reliable delivery</div>
+                <div className="text-sm text-gray-600">
+                  We confirm every order and deliver quickly. Keep your phone available for confirmation.
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
+              <div className="inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-lg border bg-white px-3 py-2 text-sm text-gray-700">
+                <CreditCard className="h-4 w-4 text-gray-500" />
+                COD / bKash
+              </div>
+              <div className="inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-lg border bg-white px-3 py-2 text-sm text-gray-700">
+                <Truck className="h-4 w-4 text-gray-500" />
+                Fast Shipping
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
 
   if (authLoading || cartLoading) {
     return (
@@ -563,7 +817,7 @@ export default function CartPage() {
                 Checkout
                 <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-xs text-gray-700 border">
                   <Sparkles className="h-3 w-3 text-blue-900" />
-                  Fast & Secure
+                  Secure checkout
                 </span>
               </div>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">Review your order</h1>
@@ -574,9 +828,9 @@ export default function CartPage() {
 
             {/* Steps */}
             <div className="flex flex-wrap items-center gap-2">
-              <StepPill active title="Cart" icon={<ShoppingBag className="h-3.5 w-3.5" />} />
-              <StepPill active title="Shipping" icon={<Truck className="h-3.5 w-3.5" />} />
-              <StepPill active title="Confirm" icon={<ShieldCheck className="h-3.5 w-3.5" />} />
+              <StepPill active={checkoutStep >= 1} title="Details" icon={<User className="h-3.5 w-3.5" />} />
+              <StepPill active={checkoutStep >= 2} title="Payment" icon={<CreditCard className="h-3.5 w-3.5" />} />
+              <StepPill active={checkoutStep >= 3} title="Confirm" icon={<ShieldCheck className="h-3.5 w-3.5" />} />
             </div>
           </div>
         </div>
@@ -602,169 +856,17 @@ export default function CartPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-            {/* ITEMS (right on desktop) */}
-            <div className="lg:col-span-1 space-y-6 order-1 lg:order-2 lg:sticky lg:top-24 lg:self-start">
-              {/* Cart header actions */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-9 w-9 rounded-full bg-white border flex items-center justify-center shadow-sm">
-                    <ShoppingBag className="h-4 w-4 text-blue-900" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">Cart Items</div>
-                    <div className="text-lg font-bold text-gray-900">
-                      {cartCount} item{cartCount > 1 ? 's' : ''}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Link href="/products">
-                    <Button variant="outline" className="h-9">
-                      Continue Shopping
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="ghost"
-                    className="h-9 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => clearCart()}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Clear Cart
-                  </Button>
-                </div>
-              </div>
-
-              {/* Cart Items Card */}
-              <Card className="shadow-sm">
-                <CardHeader className="border-b bg-white">
-                  <CardTitle className="text-base text-gray-900">Items</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y lg:max-h-[520px] lg:overflow-y-auto">
-                    {items.map((item) => {
-                      const price = Number(item.product?.price || 0);
-                      const lineTotal = price * item.quantity;
-
-                      return (
-                        <div key={item.id} className="p-4 sm:p-5">
-                          <div className="flex gap-4">
-                            <div className="relative h-20 w-20 sm:h-24 sm:w-24 flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
-                              {item.product?.images?.[0] ? (
-                                <SafeImage
-                                  src={item.product.images[0]}
-                                  alt={item.product.name}
-                                  fill
-                                  sizes="96px"
-                                  className="object-cover"
-                                />
-                              ) : (
-                                <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">
-                                  No image
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="font-semibold text-gray-900 truncate">{item.product?.name}</div>
-                                  <div className="text-xs text-gray-500 mt-0.5">
-                                    Unit price: <span className="font-medium text-gray-700">{fmtBDT(price)}</span>
-                                  </div>
-                                </div>
-
-                                <div className="text-right">
-                                  <div className="text-sm font-bold text-gray-900">{fmtBDT(lineTotal)}</div>
-                                  <div className="text-xs text-gray-500">Line total</div>
-                                </div>
-                              </div>
-
-                              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                {/* Quantity control */}
-                                <div className="inline-flex items-center rounded-lg border bg-white shadow-sm overflow-hidden">
-                                  <button
-                                    className="h-9 w-10 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
-                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                    disabled={item.quantity <= 1}
-                                    aria-label="Decrease quantity"
-                                  >
-                                    <Minus className="h-4 w-4" />
-                                  </button>
-                                  <div className="h-9 min-w-[44px] px-3 flex items-center justify-center text-sm font-semibold text-gray-900 border-x">
-                                    {item.quantity}
-                                  </div>
-                                  <button
-                                    className="h-9 w-10 flex items-center justify-center hover:bg-gray-50"
-                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                    aria-label="Increase quantity"
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                  </button>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    onClick={() => removeItem(item.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Remove
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Trust / info band */}
-              <Card className="shadow-sm border-blue-100">
-                <CardContent className="p-4 sm:p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <div className="h-9 w-9 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center">
-                        <ShieldCheck className="h-5 w-5 text-blue-900" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-gray-900">Reliable delivery</div>
-                        <div className="text-sm text-gray-600">
-                          We confirm every order and deliver quickly. Keep your phone available for confirmation.
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
-                      <div className="inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-lg border bg-white px-3 py-2 text-sm text-gray-700">
-                        <CreditCard className="h-4 w-4 text-gray-500" />
-                        COD / bKash
-                      </div>
-                      <div className="inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-lg border bg-white px-3 py-2 text-sm text-gray-700">
-                        <Truck className="h-4 w-4 text-gray-500" />
-                        Fast Shipping
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* CHECKOUT (left on desktop) */}
-            <div className="lg:col-span-2 order-2 lg:order-1">
-              <Card className="shadow-md border-blue-100 overflow-hidden">
-                <CardHeader className="bg-white border-b">
-                  <CardTitle className="text-base text-gray-900">Delivery & Checkout</CardTitle>
-                  <div className="text-xs text-gray-500">Please verify contact, address & payment before confirming.</div>
-                </CardHeader>
-
-                <CardContent className="p-5 space-y-5">
-                  <TrustBadges variant="compact" />
+          <div className="space-y-6">
+            {checkoutStep === 1 && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
+                <div className="lg:col-span-2 order-1">
+                  <Card className="shadow-md border-blue-100 overflow-hidden">
+                    <CardHeader className="bg-white border-b">
+                      <CardTitle className="text-base text-gray-900">Step 1: Contact & Address</CardTitle>
+                      <div className="text-xs text-gray-500">Add your delivery details before payment.</div>
+                      <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
+                    </CardHeader>
+                    <CardContent className="p-4 space-y-4">
 
                   {/* Full Name */}
                   <div className="rounded-xl border bg-gray-50/60 p-4">
@@ -911,213 +1013,6 @@ export default function CartPage() {
                     )}
                   </div>
 
-                  {/* ✅ Payment selection */}
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                      <CreditCard className="h-4 w-4" /> Payment Method
-                    </Label>
-
-                    <RadioGroup
-                      value={paymentMethod}
-                      onValueChange={(val: 'cod' | 'bkash') => setPaymentMethod(val)}
-                      className="grid grid-cols-1 gap-2"
-                    >
-                      {/* COD */}
-                      <PaymentOption
-                        active={paymentMethod === 'cod'}
-                        title="Cash on Delivery"
-                        subtitle="Pay when you receive the product"
-                        onClick={() => setPaymentMethod('cod')}
-                        left={
-                          <div className="h-9 w-9 rounded-lg border bg-white flex items-center justify-center">
-                            <Banknote className="h-5 w-5 text-gray-700" />
-                          </div>
-                        }
-                      >
-                        <RadioGroupItem value="cod" id="cod" />
-                      </PaymentOption>
-
-                      {/* bKash */}
-                      <PaymentOption
-                        active={paymentMethod === 'bkash'}
-                        title="bKash"
-                        subtitle="Pay now, then provide TRX ID"
-                        onClick={() => setPaymentMethod('bkash')}
-                        left={
-                          <div className="h-9 w-9 rounded-lg border bg-white flex items-center justify-center overflow-hidden">
-                            <SafeImage
-                              src={BKASH_LOGO_PATH}
-                              alt="bKash"
-                              width={24}
-                              height={24}
-                              className="h-6 w-6 object-contain"
-                            />
-                          </div>
-                        }
-                      >
-                        <RadioGroupItem value="bkash" id="bkash" />
-                      </PaymentOption>
-                    </RadioGroup>
-
-                    {paymentMethod === 'bkash' && (
-                      <div className="mt-2 rounded-xl border bg-white p-3 space-y-2">
-                        <div className="text-sm font-semibold text-gray-900">Send bKash to:</div>
-                        <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-3 py-2">
-                          <div className="text-sm font-bold text-gray-900">{BKASH_NUMBER}</div>
-                          <div className="text-xs text-gray-500">bKash</div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-semibold text-gray-700">TRX ID</Label>
-                          <input
-                            value={trxId}
-                            onChange={(e) => setTrxId(e.target.value)}
-                            placeholder="Enter bKash Transaction ID"
-                            className="w-full h-10 rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue-600"
-                          />
-                          <div className="text-xs text-gray-500">
-                            Please provide the transaction ID to confirm your order.
-                          </div>
-                        </div>
-
-                        <Alert className="py-2">
-                          <AlertTitle className="text-sm">Note</AlertTitle>
-                          <AlertDescription className="text-xs">
-                            Orders with bKash will be verified using your TRX ID.
-                          </AlertDescription>
-                        </Alert>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Shipping selection */}
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                      <MapPin className="h-4 w-4" /> Shipping Area
-                    </Label>
-
-                    <RadioGroup
-                      value={deliveryLocation}
-                      onValueChange={(val: 'inside' | 'outside') => setDeliveryLocation(val)}
-                      className="grid grid-cols-1 gap-2"
-                    >
-                      {/* Inside */}
-                      <div
-                        onClick={() => setDeliveryLocation('inside')}
-                        className={`rounded-xl border p-3 cursor-pointer transition-all ${
-                          deliveryLocation === 'inside'
-                            ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600 shadow-sm'
-                            : 'bg-white hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 pointer-events-none">
-                            <RadioGroupItem value="inside" id="inside" />
-                            <Label htmlFor="inside" className="cursor-pointer font-semibold text-gray-900">
-                              Inside Dhaka
-                            </Label>
-                          </div>
-                          <div className="text-sm font-bold text-gray-900">{fmtBDT(SHIPPING_INSIDE_DHAKA)}</div>
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1 pl-6">Standard delivery inside Dhaka city.</div>
-                      </div>
-
-                      {/* Outside */}
-                      <div
-                        onClick={() => setDeliveryLocation('outside')}
-                        className={`rounded-xl border p-3 cursor-pointer transition-all ${
-                          deliveryLocation === 'outside'
-                            ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600 shadow-sm'
-                            : 'bg-white hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 pointer-events-none">
-                            <RadioGroupItem value="outside" id="outside" />
-                            <Label htmlFor="outside" className="cursor-pointer font-semibold text-gray-900">
-                              Outside Dhaka
-                            </Label>
-                          </div>
-                          <div className="text-sm font-bold text-gray-900">{fmtBDT(SHIPPING_OUTSIDE_DHAKA)}</div>
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1 pl-6">Courier delivery to other districts.</div>
-                      </div>
-                    </RadioGroup>
-
-                    <div className="text-xs text-gray-500 flex items-center gap-2">
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Estimated delivery: <span className="font-semibold text-gray-700">{etaRange}</span>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Totals */}
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between text-gray-700">
-                      <span>Subtotal</span>
-                      <span className="font-semibold">{fmtBDT(subtotal)}</span>
-                    </div>
-
-                    {/* Voucher */}
-                    <div className="rounded-xl border bg-white p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-gray-900">Voucher</span>
-                        {voucher && voucherDiscount > 0 && (
-                          <span className="text-xs font-bold text-green-700">Applied</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={voucherInput}
-                          onChange={(e) => setVoucherInput(e.target.value)}
-                          placeholder="Enter voucher code"
-                          className="bg-white"
-                        />
-                        {voucher ? (
-                          <Button type="button" variant="outline" className="bg-white" onClick={clearVoucher}>
-                            Remove
-                          </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="bg-white"
-                            onClick={() => void applyVoucher()}
-                            disabled={voucherLoading || !voucherInput.trim()}
-                          >
-                            {voucherLoading ? '...' : 'Apply'}
-                          </Button>
-                        )}
-                      </div>
-                      {voucherMsg && (
-                        <div className={`text-xs ${voucher ? 'text-green-700' : 'text-red-600'}`}>{voucherMsg}</div>
-                      )}
-                      <div className="text-[11px] text-gray-500">Discount applies to product subtotal (shipping excluded).</div>
-                    </div>
-
-                    {voucherDiscount > 0 && (
-                      <div className="flex justify-between text-gray-700">
-                        <span className="font-semibold text-green-700">Voucher Discount {voucher?.code ? `(${voucher.code})` : ''}</span>
-                        <span className="font-semibold text-green-700">- {fmtBDT(voucherDiscount)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-gray-700">
-                      <span>Shipping</span>
-                      <span className="font-semibold">{fmtBDT(shippingCost)}</span>
-                    </div>
-                    <Separator className="my-2" />
-                    <div className="flex justify-between text-lg font-extrabold text-blue-900">
-                      <span>Total</span>
-                      <span>{fmtBDT(total)}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-2">
-                      <Truck className="h-3.5 w-3.5" />
-                      {paymentMethod === 'cod' ? 'Cash on Delivery available' : 'bKash payment selected'}
-                    </div>
-                  </div>
-
-                  {/* Confirm */}
                   {user ? (
                     !isProfileComplete && (
                       <Alert variant="destructive" className="py-2">
@@ -1149,20 +1044,358 @@ export default function CartPage() {
                     </Alert>
                   )}
 
-                  <Button
-                    className="w-full bg-blue-900 hover:bg-blue-800 h-11 text-base shadow-sm"
-                    onClick={handleConfirmOrder}
-                    disabled={!canCheckout}
-                  >
-                    {isPlacingOrder ? 'Processing...' : 'Confirm Order'}
-                  </Button>
-
-                  <div className="text-center text-xs text-gray-500">
-                    By confirming, you agree to be contacted to verify your order.
+                  <div className="flex justify-end">
+                    <Button
+                      className="bg-blue-900 hover:bg-blue-800 h-11 px-6"
+                      onClick={handleContinueToPayment}
+                      disabled={!infoReady}
+                    >
+                      Continue to Payment
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="lg:col-span-1 order-2 lg:sticky lg:top-24 lg:self-start">
+                {cartItemsPanel}
+              </div>
             </div>
+            )}
+
+            {checkoutStep === 2 && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
+                <div className="lg:col-span-2 order-1">
+                  <Card className="shadow-md border-blue-100 overflow-hidden">
+                    <CardHeader className="bg-white border-b">
+                      <CardTitle className="text-base text-gray-900">Step 2: Payment & Shipping</CardTitle>
+                      <div className="text-xs text-gray-500">Choose how you want to pay and where to deliver.</div>
+                      <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
+                    </CardHeader>
+
+                    <CardContent className="p-4 space-y-4">
+
+                      {/* ✅ Payment selection */}
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2 text-gray-700 font-semibold">
+                          <CreditCard className="h-4 w-4" /> Payment Method
+                        </Label>
+
+                        <RadioGroup
+                          value={paymentMethod}
+                          onValueChange={(val: 'cod' | 'bkash') => setPaymentMethod(val)}
+                          className="grid grid-cols-1 gap-2"
+                        >
+                          {/* COD */}
+                          <PaymentOption
+                            active={paymentMethod === 'cod'}
+                            title="Cash on Delivery"
+                            subtitle="Pay when you receive the product"
+                            onClick={() => setPaymentMethod('cod')}
+                            left={
+                              <div className="h-9 w-9 rounded-lg border bg-white flex items-center justify-center">
+                                <Banknote className="h-5 w-5 text-gray-700" />
+                              </div>
+                            }
+                          >
+                            <RadioGroupItem value="cod" id="cod" />
+                          </PaymentOption>
+
+                          {/* bKash */}
+                          <PaymentOption
+                            active={paymentMethod === 'bkash'}
+                            title="bKash"
+                            subtitle="Pay now, then provide TRX ID"
+                            onClick={() => setPaymentMethod('bkash')}
+                            left={
+                              <div className="h-9 w-9 rounded-lg border bg-white flex items-center justify-center overflow-hidden">
+                                <SafeImage
+                                  src={BKASH_LOGO_PATH}
+                                  alt="bKash"
+                                  width={24}
+                                  height={24}
+                                  className="h-6 w-6 object-contain"
+                                />
+                              </div>
+                            }
+                          >
+                            <RadioGroupItem value="bkash" id="bkash" />
+                          </PaymentOption>
+                        </RadioGroup>
+
+                        {paymentMethod === 'bkash' && (
+                          <div className="mt-2 rounded-xl border bg-white p-3 space-y-2">
+                            <div className="text-sm font-semibold text-gray-900">Send bKash to:</div>
+                            <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-3 py-2">
+                              <div className="text-sm font-bold text-gray-900">{BKASH_NUMBER}</div>
+                              <div className="text-xs text-gray-500">bKash</div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <Label className="text-sm font-semibold text-gray-700">TRX ID</Label>
+                              <input
+                                value={trxId}
+                                onChange={(e) => setTrxId(e.target.value)}
+                                placeholder="Enter bKash Transaction ID"
+                                className="w-full h-10 rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+                              />
+                              <div className="text-xs text-gray-500">
+                                Please provide the transaction ID to confirm your order.
+                              </div>
+                            </div>
+
+                            <Alert className="py-2">
+                              <AlertTitle className="text-sm">Note</AlertTitle>
+                              <AlertDescription className="text-xs">
+                                Orders with bKash will be verified using your TRX ID.
+                              </AlertDescription>
+                            </Alert>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Shipping selection */}
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2 text-gray-700 font-semibold">
+                          <MapPin className="h-4 w-4" /> Shipping Area
+                        </Label>
+
+                        <RadioGroup
+                          value={deliveryLocation}
+                          onValueChange={(val: 'inside' | 'outside') => setDeliveryLocation(val)}
+                          className="grid grid-cols-1 gap-2"
+                        >
+                          {/* Inside */}
+                          <div
+                            onClick={() => setDeliveryLocation('inside')}
+                            className={`rounded-xl border p-3 cursor-pointer transition-all ${
+                              deliveryLocation === 'inside'
+                                ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600 shadow-sm'
+                                : 'bg-white hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 pointer-events-none">
+                                <RadioGroupItem value="inside" id="inside" />
+                                <Label htmlFor="inside" className="cursor-pointer font-semibold text-gray-900">
+                                  Inside Dhaka
+                                </Label>
+                              </div>
+                              <div className="text-sm font-bold text-gray-900">{fmtBDT(SHIPPING_INSIDE_DHAKA)}</div>
+                            </div>
+                            <div className="text-xs text-gray-600 mt-1 pl-6">Standard delivery inside Dhaka city.</div>
+                          </div>
+
+                          {/* Outside */}
+                          <div
+                            onClick={() => setDeliveryLocation('outside')}
+                            className={`rounded-xl border p-3 cursor-pointer transition-all ${
+                              deliveryLocation === 'outside'
+                                ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600 shadow-sm'
+                                : 'bg-white hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 pointer-events-none">
+                                <RadioGroupItem value="outside" id="outside" />
+                                <Label htmlFor="outside" className="cursor-pointer font-semibold text-gray-900">
+                                  Outside Dhaka
+                                </Label>
+                              </div>
+                              <div className="text-sm font-bold text-gray-900">{fmtBDT(SHIPPING_OUTSIDE_DHAKA)}</div>
+                            </div>
+                            <div className="text-xs text-gray-600 mt-1 pl-6">Courier delivery to other districts.</div>
+                          </div>
+                        </RadioGroup>
+
+                        <div className="text-xs text-gray-500 flex items-center gap-2">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Estimated delivery: <span className="font-semibold text-gray-700">{etaRange}</span>
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      {/* Totals */}
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between text-gray-700">
+                          <span>Subtotal</span>
+                          <span className="font-semibold">{fmtBDT(subtotal)}</span>
+                        </div>
+
+                        {/* Voucher */}
+                        <div className="rounded-xl border bg-white p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-gray-900">Voucher</span>
+                            {voucher && voucherDiscount > 0 && (
+                              <span className="text-xs font-bold text-green-700">Applied</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={voucherInput}
+                              onChange={(e) => setVoucherInput(e.target.value)}
+                              placeholder="Enter voucher code"
+                              className="bg-white"
+                            />
+                            {voucher ? (
+                              <Button type="button" variant="outline" className="bg-white" onClick={clearVoucher}>
+                                Remove
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="bg-white"
+                                onClick={() => void applyVoucher()}
+                                disabled={voucherLoading || !voucherInput.trim()}
+                              >
+                                {voucherLoading ? '...' : 'Apply'}
+                              </Button>
+                            )}
+                          </div>
+                          {voucherMsg && (
+                            <div className={`text-xs ${voucher ? 'text-green-700' : 'text-red-600'}`}>{voucherMsg}</div>
+                          )}
+                          <div className="text-[11px] text-gray-500">Discount applies to product subtotal (shipping excluded).</div>
+                        </div>
+
+                        {voucherDiscount > 0 && (
+                          <div className="flex justify-between text-gray-700">
+                            <span className="font-semibold text-green-700">Voucher Discount {voucher?.code ? `(${voucher.code})` : ''}</span>
+                            <span className="font-semibold text-green-700">- {fmtBDT(voucherDiscount)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-gray-700">
+                          <span>Shipping</span>
+                          <span className="font-semibold">{fmtBDT(shippingCost)}</span>
+                        </div>
+                        <Separator className="my-2" />
+                        <div className="flex justify-between text-lg font-extrabold text-blue-900">
+                          <span>Total</span>
+                          <span>{fmtBDT(total)}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 flex items-center gap-2">
+                          <Truck className="h-3.5 w-3.5" />
+                          {paymentMethod === 'cod' ? 'Cash on Delivery available' : 'bKash payment selected'}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                        <Button variant="outline" className="h-11" onClick={() => setCheckoutStep(1)}>
+                          Back to Details
+                        </Button>
+                        <Button
+                          className="flex-1 bg-blue-900 hover:bg-blue-800 h-11"
+                          onClick={handleContinueToConfirm}
+                          disabled={!trxOk || missingSize}
+                        >
+                          Continue to Review
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+                <div className="lg:col-span-1 order-2 lg:sticky lg:top-24 lg:self-start">
+                  {cartItemsPanel}
+                </div>
+              </div>
+            )}
+
+            {checkoutStep === 3 && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
+                <div className="lg:col-span-2 order-1">
+                  <Card className="shadow-md border-blue-100 overflow-hidden">
+                    <CardHeader className="bg-white border-b">
+                      <CardTitle className="text-base text-gray-900">Step 3: Review & Confirm</CardTitle>
+                      <div className="text-xs text-gray-500">Review everything before placing your order.</div>
+                      <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
+                    </CardHeader>
+
+                    <CardContent className="p-4 space-y-4">
+                      <div className="rounded-xl border bg-gray-50/60 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-sm font-semibold text-gray-800">Contact & Address</div>
+                          <Button variant="outline" size="sm" className="h-8" onClick={() => setCheckoutStep(1)}>
+                            Edit
+                          </Button>
+                        </div>
+                        <div className="text-sm text-gray-700 space-y-1">
+                          <div><span className="font-semibold">Name:</span> {user ? profile?.full_name || '—' : guestFullName}</div>
+                          <div><span className="font-semibold">Phone:</span> {user ? profile?.phone || '—' : normalizePhone(guestPhone)}</div>
+                          <div className="whitespace-pre-wrap">
+                            <span className="font-semibold">Address:</span>{' '}
+                            {user ? (profile as any)?.address || '—' : guestAddress}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border bg-gray-50/60 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-sm font-semibold text-gray-800">Payment & Shipping</div>
+                          <Button variant="outline" size="sm" className="h-8" onClick={() => setCheckoutStep(2)}>
+                            Edit
+                          </Button>
+                        </div>
+                        <div className="text-sm text-gray-700 space-y-1">
+                          <div><span className="font-semibold">Payment:</span> {paymentMethod === 'cod' ? 'Cash on Delivery' : 'bKash'}</div>
+                          {paymentMethod === 'bkash' && (
+                            <div><span className="font-semibold">TRX ID:</span> {trxId || '—'}</div>
+                          )}
+                          <div><span className="font-semibold">Shipping:</span> {deliveryLocation === 'inside' ? 'Inside Dhaka' : 'Outside Dhaka'}</div>
+                          <div><span className="font-semibold">ETA:</span> {etaRange}</div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border bg-white p-4 space-y-2 text-sm">
+                        <div className="flex justify-between text-gray-700">
+                          <span>Subtotal</span>
+                          <span className="font-semibold">{fmtBDT(subtotal)}</span>
+                        </div>
+                        {voucherDiscount > 0 && (
+                          <div className="flex justify-between text-gray-700">
+                            <span className="font-semibold text-green-700">Voucher Discount {voucher?.code ? `(${voucher.code})` : ''}</span>
+                            <span className="font-semibold text-green-700">- {fmtBDT(voucherDiscount)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-gray-700">
+                          <span>Shipping</span>
+                          <span className="font-semibold">{fmtBDT(shippingCost)}</span>
+                        </div>
+                        <Separator className="my-2" />
+                        <div className="flex justify-between text-lg font-extrabold text-blue-900">
+                          <span>Total</span>
+                          <span>{fmtBDT(total)}</span>
+                        </div>
+                      </div>
+
+                      {!user && (
+                        <Alert className="py-2">
+                          <AlertTitle>Guest checkout enabled</AlertTitle>
+                          <AlertDescription className="text-xs">
+                            You can order without logging in. If you sign in, your saved profile will be used automatically.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      <Button
+                        className="w-full bg-blue-900 hover:bg-blue-800 h-11 text-base shadow-sm"
+                        onClick={handleConfirmOrder}
+                        disabled={!canCheckout}
+                      >
+                        {isPlacingOrder ? 'Processing...' : 'Confirm Order'}
+                      </Button>
+
+                      <div className="text-center text-xs text-gray-500">
+                        By confirming, you agree to be contacted to verify your order.
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+                <div className="lg:col-span-1 order-2 lg:sticky lg:top-24 lg:self-start">
+                  {cartItemsPanel}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

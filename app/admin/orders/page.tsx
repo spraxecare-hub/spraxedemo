@@ -32,6 +32,8 @@ interface OrderItem {
   id: string;
   product_name: string;
   quantity: number;
+  size?: string | null;
+  color_name?: string | null;
 }
 
 interface Order {
@@ -225,7 +227,7 @@ export default function OrdersManagement() {
         payment_status,
         payment_trx_id,
         profiles ( full_name, email, phone ),
-        order_items ( id, product_name, quantity )
+        order_items ( id, product_name, quantity, size, color_name )
       `
       )
       .order('created_at', { ascending: false });
@@ -510,13 +512,26 @@ export default function OrdersManagement() {
                           <td className="px-6 py-4 align-top">
                             {order.order_items && order.order_items.length > 0 ? (
                               <div className="space-y-1">
-                                {order.order_items.slice(0, 3).map((item) => (
-                                  <div key={item.id} className="flex items-center gap-2 text-sm">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                                    <span className="font-medium text-gray-800">{item.product_name}</span>
-                                    <span className="text-gray-500 text-xs">x{item.quantity}</span>
-                                  </div>
-                                ))}
+                                {order.order_items.slice(0, 3).map((item) => {
+                                  const meta = [
+                                    item.color_name ? `Color: ${item.color_name}` : null,
+                                    item.size ? `Size: ${item.size}` : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' • ');
+                                  return (
+                                    <div key={item.id} className="flex items-start gap-2 text-sm">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2" />
+                                      <div>
+                                        <div className="font-medium text-gray-800">{item.product_name}</div>
+                                        <div className="text-gray-500 text-xs">
+                                          x{item.quantity}
+                                          {meta ? ` • ${meta}` : ''}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                                 {order.order_items.length > 3 && (
                                   <div className="text-xs text-gray-500 mt-1">
                                     + {order.order_items.length - 3} more items

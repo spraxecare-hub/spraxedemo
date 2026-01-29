@@ -109,7 +109,9 @@ export async function POST(req: Request) {
         ),
         order_items (
           product_name,
-          quantity
+          quantity,
+          size,
+          color_name
         )
       `
       )
