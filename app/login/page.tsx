@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { Phone, Mail, Loader2, Eye, EyeOff, ShieldCheck, ArrowLeft, Lock } from 'lucide-react';
+import { Phone, Mail, Loader2, Eye, EyeOff, Lock } from 'lucide-react';
 
 /**
  * ✅ Professional improvements included:
@@ -29,17 +29,8 @@ import { Phone, Mail, Loader2, Eye, EyeOff, ShieldCheck, ArrowLeft, Lock } from 
  */
 
 type TabKey = 'phone' | 'email';
-type PhoneStep = 'phone' | 'otp';
 
-const onlyDigits = (v: string) => v.replace(/\D/g, '');
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-const normalizeBDPhone = (v: string) => {
-  // Accept: 01XXXXXXXXX or +8801XXXXXXXXX or 8801XXXXXXXXX
-  const raw = v.trim();
-  if (raw.startsWith('+88')) return raw;
-  if (raw.startsWith('88')) return `+${raw}`;
-  return `+88${raw}`;
-};
 
 export default function LoginPage() {
   const { toast } = useToast();
@@ -143,25 +134,12 @@ function AuthForms({
   const [signInEmail, setSignInEmail] = useState('');
   const [signInPassword, setSignInPassword] = useState('');
 
-  // PHONE
-  const [phoneStep, setPhoneStep] = useState<PhoneStep>('phone');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [otp, setOtp] = useState('');
-
   const canEmailLogin = useMemo(() => {
     return isValidEmail(signInEmail) && signInPassword.trim().length >= 1;
   }, [signInEmail, signInPassword]);
 
-  const canSendOtp = useMemo(() => {
-    const digits = onlyDigits(phoneNumber);
-    return digits.length === 11 && digits.startsWith('01');
-  }, [phoneNumber]);
-
   const resetOnTabSwitch = (next: TabKey) => {
     setTab(next);
-    // avoid confusing state when switching
-    setPhoneStep('phone');
-    setOtp('');
   };
 
   const handleEmailSignIn = async () => {
@@ -200,69 +178,6 @@ function AuthForms({
     }
   };
 
-  const handleSendOTP = async () => {
-    const digits = onlyDigits(phoneNumber);
-
-    if (digits.length !== 11 || !digits.startsWith('01')) {
-      toast({
-        title: 'Invalid phone number',
-        description: 'Use an 11-digit BD number (01XXXXXXXXX).',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    onLoading(true);
-    try {
-      const formattedPhone = normalizeBDPhone(digits);
-      const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
-      if (error) throw error;
-
-      toast({ title: 'OTP sent', description: 'Please check your SMS for the 6-digit code.' });
-      setPhoneStep('otp');
-    } catch (error: any) {
-      toast({ title: 'Failed to send OTP', description: error.message || 'Try again.', variant: 'destructive' });
-    } finally {
-      onLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    const token = onlyDigits(otp);
-
-    // ✅ Supabase SMS OTP is typically 6 digits
-    if (token.length !== 6) {
-      toast({ title: 'Invalid OTP', description: 'Enter the 6-digit SMS code.', variant: 'destructive' });
-      return;
-    }
-
-    onLoading(true);
-    try {
-      const formattedPhone = normalizeBDPhone(onlyDigits(phoneNumber));
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: formattedPhone,
-        token,
-        type: 'sms',
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .single();
-
-        toast({ title: 'Signed in', description: 'Welcome back!' });
-        router.push(profile?.role === 'admin' ? '/admin' : profile?.role === 'seller' ? '/seller' : '/');
-      }
-    } catch (error: any) {
-      toast({ title: 'Verification failed', description: error.message || 'Try again.', variant: 'destructive' });
-    } finally {
-      onLoading(false);
-    }
-  };
 
   return (
     <div className="space-y-5">
@@ -278,82 +193,17 @@ function AuthForms({
 
         {/* PHONE TAB */}
         <TabsContent value="phone" className="space-y-4">
-          {phoneStep === 'phone' ? (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    inputMode="numeric"
-                    placeholder="01XXXXXXXXX"
-                    value={onlyDigits(phoneNumber)}
-                    onChange={(e) => setPhoneNumber(onlyDigits(e.target.value))}
-                    maxLength={11}
-                    className="pl-10"
-                  />
-                </div>
-                <p className="text-xs text-gray-500">We’ll send a 6-digit code via SMS.</p>
-              </div>
-
-              <Button
-                onClick={handleSendOTP}
-                disabled={isLoading || !canSendOtp}
-                className="w-full bg-blue-900 hover:bg-blue-800"
-              >
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Send OTP'}
-              </Button>
-            </>
-          ) : (
-            <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-              <div className="rounded-xl border bg-blue-50/60 p-3">
-                <div className="flex items-start gap-2 text-blue-950">
-                  <ShieldCheck className="h-5 w-5 mt-0.5" />
-                  <div className="text-sm">
-                    <div className="font-semibold">Verify your phone</div>
-                    <div className="text-xs text-blue-900/70">
-                      Enter the 6-digit code sent to <span className="font-medium">{onlyDigits(phoneNumber)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="otp">OTP code</Label>
-                <Input
-                  id="otp"
-                  inputMode="numeric"
-                  placeholder="000000"
-                  value={onlyDigits(otp)}
-                  onChange={(e) => setOtp(onlyDigits(e.target.value))}
-                  maxLength={6}
-                  className="text-center text-xl tracking-[0.35em] font-semibold"
-                />
-              </div>
-
-              <Button
-                onClick={handleVerifyOTP}
-                disabled={isLoading || onlyDigits(otp).length !== 6}
-                className="w-full bg-blue-900 hover:bg-blue-800"
-              >
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Verify & Login'}
-              </Button>
-
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setPhoneStep('phone');
-                  setOtp('');
-                }}
-                disabled={isLoading}
-                className="w-full text-gray-600"
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" /> Change phone number
-              </Button>
-            </div>
-          )}
+          <div className="rounded-xl border bg-blue-50/60 p-4 text-sm text-blue-950">
+            <div className="font-semibold">Please continue with email.</div>
+            <div className="text-xs text-blue-900/70 mt-1">Login with number coming soon!</div>
+          </div>
+          <Button
+            onClick={() => resetOnTabSwitch('email')}
+            className="w-full bg-blue-900 hover:bg-blue-800"
+            type="button"
+          >
+            Continue with Email
+          </Button>
         </TabsContent>
 
         {/* EMAIL TAB */}

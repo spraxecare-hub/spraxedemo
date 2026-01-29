@@ -29,7 +29,7 @@ type TrackResult = {
   total_amount: number | null;
   shipping_cost: number | null;
   notes?: string | null;
-  items: Array<{ product_name: string; quantity: number }>;
+  items: Array<{ product_name: string; quantity: number; size?: string | null; color_name?: string | null }>;
 };
 
 function fmtDate(v?: string | null) {
@@ -244,12 +244,23 @@ export default function TrackOrderClient({
               <div className="text-sm font-extrabold text-gray-900 mb-2">Items</div>
               <div className="space-y-2">
                 {result.items?.length ? (
-                  result.items.map((it, idx) => (
-                    <div key={idx} className="flex items-center justify-between gap-3 text-sm">
-                      <div className="text-gray-800 truncate">{it.product_name}</div>
-                      <div className="font-semibold text-gray-900">× {it.quantity}</div>
-                    </div>
-                  ))
+                  result.items.map((it, idx) => {
+                    const meta = [
+                      it.color_name ? `Color: ${it.color_name}` : null,
+                      it.size ? `Size: ${it.size}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' • ');
+                    return (
+                      <div key={idx} className="flex items-start justify-between gap-3 text-sm">
+                        <div>
+                          <div className="text-gray-800">{it.product_name}</div>
+                          {meta && <div className="text-xs text-gray-500">{meta}</div>}
+                        </div>
+                        <div className="font-semibold text-gray-900">× {it.quantity}</div>
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="text-sm text-gray-600">—</div>
                 )}

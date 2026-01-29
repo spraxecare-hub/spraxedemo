@@ -11,24 +11,31 @@ interface ProductLite {
   price: number;
   images: string[];
   stock_quantity: number;
+  category_id?: string | null;
+  category_name?: string | null;
+  category_slug?: string | null;
+  color_name?: string | null;
+  color_hex?: string | null;
 }
 
 interface CartItem {
   id: string; // DB row id when logged in, else product_id for guests
   product_id: string;
   quantity: number;
+  size?: string | null;
   product: ProductLite;
 }
 
-type GuestCartRow = { product_id: string; quantity: number };
+type GuestCartRow = { product_id: string; quantity: number; size?: string | null };
 
 interface CartContextType {
   items: CartItem[];
   itemCount: number;
   subtotal: number;
   loading: boolean;
-  addToCart: (productId: string, quantity?: number) => Promise<void>;
+  addToCart: (productId: string, quantity?: number, options?: { size?: string | null }) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
+  updateItemSize: (itemId: string, size: string | null) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
   refreshCart: () => Promise<void>;
@@ -41,6 +48,7 @@ const CartContext = createContext<CartContextType>({
   loading: true,
   addToCart: async () => {},
   updateQuantity: async () => {},
+  updateItemSize: async () => {},
   removeItem: async () => {},
   clearCart: async () => {},
   refreshCart: async () => {},
@@ -66,15 +74,25 @@ const readLocalCart = (): GuestCartRow[] => {
       .map((x: any) => ({
         product_id: String(x?.product_id || ''),
         quantity: safeInt(x?.quantity, 0),
+        size: x?.size ? String(x.size) : null,
       }))
       .filter((x) => x.product_id && x.quantity > 0);
 
     // merge duplicates (same product_id)
-    const map = new Map<string, number>();
+    const map = new Map<string, GuestCartRow>();
     for (const row of cleaned) {
-      map.set(row.product_id, (map.get(row.product_id) || 0) + row.quantity);
+      const existing = map.get(row.product_id);
+      if (!existing) {
+        map.set(row.product_id, { ...row });
+      } else {
+        map.set(row.product_id, {
+          product_id: row.product_id,
+          quantity: (existing.quantity || 0) + row.quantity,
+          size: row.size ?? existing.size ?? null,
+        });
+      }
     }
-    return Array.from(map.entries()).map(([product_id, quantity]) => ({ product_id, quantity }));
+    return Array.from(map.values());
   } catch {
     return [];
   }
@@ -82,7 +100,11 @@ const readLocalCart = (): GuestCartRow[] => {
 
 const writeLocalCart = (rows: GuestCartRow[]) => {
   const cleaned = rows
-    .map((x) => ({ product_id: String(x.product_id), quantity: safeInt(x.quantity, 0) }))
+    .map((x) => ({
+      product_id: String(x.product_id),
+      quantity: safeInt(x.quantity, 0),
+      size: x.size ? String(x.size) : null,
+    }))
     .filter((x) => x.product_id && x.quantity > 0);
   localStorage.setItem(LS_KEY, JSON.stringify(cleaned));
 };
@@ -106,7 +128,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     // Fetch existing cart items for those products (single query)
     const { data: existingRows, error: existingErr } = await supabase
       .from('cart_items')
-      .select('id, product_id, quantity')
+      .select('id, product_id, quantity, size')
       .eq('user_id', userId)
       .in('product_id', productIds);
 
@@ -115,29 +137,40 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       for (const row of localRows) {
         const { data: ex } = await supabase
           .from('cart_items')
-          .select('id, quantity')
+          .select('id, quantity, size')
           .eq('user_id', userId)
           .eq('product_id', row.product_id)
           .maybeSingle();
 
         if (ex?.id) {
-          await supabase.from('cart_items').update({ quantity: safeInt(ex.quantity) + row.quantity }).eq('id', ex.id);
+          await supabase
+            .from('cart_items')
+            .update({
+              quantity: safeInt(ex.quantity) + row.quantity,
+              size: row.size ?? ex.size ?? null,
+            })
+            .eq('id', ex.id);
         } else {
-          await supabase.from('cart_items').insert({ user_id: userId, product_id: row.product_id, quantity: row.quantity });
+          await supabase
+            .from('cart_items')
+            .insert({ user_id: userId, product_id: row.product_id, quantity: row.quantity, size: row.size ?? null });
         }
       }
       localStorage.removeItem(LS_KEY);
       return;
     }
 
-    const existingMap = new Map<string, number>();
-    (existingRows || []).forEach((r: any) => existingMap.set(String(r.product_id), safeInt(r.quantity)));
+    const existingMap = new Map<string, { quantity: number; size: string | null }>();
+    (existingRows || []).forEach((r: any) =>
+      existingMap.set(String(r.product_id), { quantity: safeInt(r.quantity), size: r.size ?? null })
+    );
 
     // Build upsert rows with final quantities (existing + local)
     const upsertRows = localRows.map((r) => ({
       user_id: userId,
       product_id: r.product_id,
-      quantity: safeInt(existingMap.get(r.product_id) || 0) + r.quantity,
+      quantity: safeInt(existingMap.get(r.product_id)?.quantity || 0) + r.quantity,
+      size: r.size ?? existingMap.get(r.product_id)?.size ?? null,
     }));
 
     // Prefer upsert (requires unique constraint on (user_id, product_id))
@@ -148,15 +181,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (upsertErr) {
       // If upsert fails (no constraint), fallback to updates/inserts
       for (const row of localRows) {
-        const existingQty = existingMap.get(row.product_id);
-        if (existingQty != null) {
+        const existing = existingMap.get(row.product_id);
+        if (existing?.quantity != null) {
           await supabase
             .from('cart_items')
-            .update({ quantity: existingQty + row.quantity })
+            .update({
+              quantity: existing.quantity + row.quantity,
+              size: row.size ?? existing.size ?? null,
+            })
             .eq('user_id', userId)
             .eq('product_id', row.product_id);
         } else {
-          await supabase.from('cart_items').insert({ user_id: userId, product_id: row.product_id, quantity: row.quantity });
+          await supabase
+            .from('cart_items')
+            .insert({ user_id: userId, product_id: row.product_id, quantity: row.quantity, size: row.size ?? null });
         }
       }
     }
@@ -183,7 +221,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
         const { data: products, error } = await supabase
           .from('products')
-          .select('id, name, slug, price, images, stock_quantity')
+          .select('id, name, slug, price, images, stock_quantity, category_id, color_name, color_hex, category:categories(name,slug)')
           .in('id', productIds);
 
         if (error || !products) {
@@ -192,7 +230,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
 
         const productMap = new Map<string, ProductLite>();
-        products.forEach((p: any) => productMap.set(String(p.id), p as ProductLite));
+        products.forEach((p: any) =>
+          productMap.set(String(p.id), {
+            ...(p as ProductLite),
+            category_name: p?.category?.name ?? null,
+            category_slug: p?.category?.slug ?? null,
+            color_name: p?.color_name ?? null,
+            color_hex: p?.color_hex ?? null,
+          } as ProductLite)
+        );
 
         const cartItems: CartItem[] = localRows
           .map((row) => {
@@ -207,13 +253,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               id: row.product_id, // guests use product_id as stable id
               product_id: row.product_id,
               quantity: qty,
+              size: row.size ?? null,
               product,
             } as CartItem;
           })
           .filter(Boolean) as CartItem[];
 
         // If we clamped any qty, persist it to local storage
-        const maybeClamped = cartItems.map((ci) => ({ product_id: ci.product_id, quantity: ci.quantity }));
+        const maybeClamped = cartItems.map((ci) => ({
+          product_id: ci.product_id,
+          quantity: ci.quantity,
+          size: ci.size ?? null,
+        }));
         writeLocalCart(maybeClamped);
 
         if (seq === seqRef.current) setItems(cartItems);
@@ -228,13 +279,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           id,
           product_id,
           quantity,
+          size,
           product:products!inner (
             id,
             name,
             slug,
             price,
             images,
-            stock_quantity
+            stock_quantity,
+            category_id,
+            color_name,
+            color_hex,
+            category:categories(name,slug)
           )
         `
         )
@@ -255,7 +311,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             id: String(row.id),
             product_id: String(row.product_id),
             quantity: qty,
-            product: product as ProductLite,
+            size: row.size ?? null,
+            product: {
+              ...(product as ProductLite),
+              category_name: product?.category?.name ?? null,
+              category_slug: product?.category?.slug ?? null,
+              color_name: product?.color_name ?? null,
+              color_hex: product?.color_hex ?? null,
+            },
           };
         }) || [];
 
@@ -291,16 +354,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   /** 3) Mutations */
-  const addToCart = async (productId: string, quantity: number = 1) => {
+  const addToCart = async (productId: string, quantity: number = 1, options?: { size?: string | null }) => {
     const qtyToAdd = Math.max(1, safeInt(quantity, 1));
     const pid = String(productId);
+    const size = options?.size ?? null;
 
     // Guest: localStorage
     if (!user) {
       const rows = readLocalCart();
-      const map = new Map(rows.map((r) => [r.product_id, r.quantity]));
-      map.set(pid, (map.get(pid) || 0) + qtyToAdd);
-      writeLocalCart(Array.from(map.entries()).map(([product_id, quantity]) => ({ product_id, quantity })));
+      const map = new Map(rows.map((r) => [r.product_id, r]));
+      const existing = map.get(pid);
+      const nextRow: GuestCartRow = {
+        product_id: pid,
+        quantity: (existing?.quantity || 0) + qtyToAdd,
+        size: size ?? existing?.size ?? null,
+      };
+      map.set(pid, nextRow);
+      writeLocalCart(Array.from(map.values()));
       await fetchCart();
       return;
     }
@@ -309,13 +379,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const existing = items.find((i) => i.product_id === pid);
     if (existing) {
       await updateQuantity(existing.id, existing.quantity + qtyToAdd);
+      if (size && size !== (existing.size ?? null)) {
+        await updateItemSize(existing.id, size);
+      }
       return;
     }
 
     // Insert; if your DB has unique(user_id,product_id), upsert is safest
     const { error } = await supabase
       .from('cart_items')
-      .upsert([{ user_id: user.id, product_id: pid, quantity: qtyToAdd }] as any, {
+      .upsert([{ user_id: user.id, product_id: pid, quantity: qtyToAdd, size }] as any, {
         onConflict: 'user_id,product_id',
       });
 
@@ -324,7 +397,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       // fallback insert
       const { error: insErr } = await supabase
         .from('cart_items')
-        .insert({ user_id: user.id, product_id: pid, quantity: qtyToAdd });
+        .insert({ user_id: user.id, product_id: pid, quantity: qtyToAdd, size });
 
       if (!insErr) await fetchCart();
     }
@@ -350,6 +423,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     // Logged-in: itemId is cart_items.id
     const { error } = await supabase.from('cart_items').update({ quantity: q }).eq('id', String(itemId));
+    if (!error) await fetchCart();
+  };
+
+  const updateItemSize = async (itemId: string, size: string | null) => {
+    const nextSize = size ? String(size) : null;
+    if (!user) {
+      const pid = String(itemId);
+      const rows = readLocalCart();
+      const updated = rows.map((r) => (r.product_id === pid ? { ...r, size: nextSize } : r));
+      writeLocalCart(updated);
+      await fetchCart();
+      return;
+    }
+
+    const { error } = await supabase.from('cart_items').update({ size: nextSize }).eq('id', String(itemId));
     if (!error) await fetchCart();
   };
 
@@ -400,6 +488,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         loading,
         addToCart,
         updateQuantity,
+        updateItemSize,
         removeItem,
         clearCart,
         refreshCart,
