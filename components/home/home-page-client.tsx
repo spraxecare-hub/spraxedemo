@@ -8,7 +8,7 @@ import { SafeImage } from '@/components/ui/safe-image';
 
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-const FEATURE_IMAGE_BUCKET = 'feature-image';
+const FEATURE_IMAGE_BUCKETS = ['feature-image', 'featured-image'];
 
 /**
  * Resolve image urls coming from the DB/admin panel.
@@ -18,8 +18,38 @@ const FEATURE_IMAGE_BUCKET = 'feature-image';
  * - Supabase Storage object keys/paths (e.g. "folder/file.jpg" or "feature-image/folder/file.jpg")
  * - Supabase storage urls without host (e.g. "/storage/v1/object/public/...")
  */
-function resolvePublicImageUrl(raw?: string): string {
-  const s = (raw ?? '').trim();
+function resolvePublicImageUrl(raw?: unknown): string {
+  if (raw == null) return '';
+
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      const candidate = resolvePublicImageUrl(entry);
+      if (candidate) return candidate;
+    }
+    return '';
+  }
+
+  if (typeof raw === 'object') {
+    const record = raw as Record<string, unknown>;
+    const objectCandidates = [
+      record.url,
+      record.publicUrl,
+      record.public_url,
+      record.path,
+      record.key,
+      record.src,
+      record.image_url,
+      record.imageUrl,
+    ];
+
+    for (const candidate of objectCandidates) {
+      const resolved = resolvePublicImageUrl(candidate);
+      if (resolved) return resolved;
+    }
+    return '';
+  }
+
+  const s = String(raw ?? '').trim();
   if (!s) return '';
 
   // Absolute / protocol-relative
@@ -41,11 +71,11 @@ function resolvePublicImageUrl(raw?: string): string {
 
   // Treat as a Supabase Storage object key/path
   if (SUPABASE_URL) {
-    const key = s.startsWith(`${FEATURE_IMAGE_BUCKET}/`)
-      ? s.slice(FEATURE_IMAGE_BUCKET.length + 1)
-      : s;
+    const matchedBucket = FEATURE_IMAGE_BUCKETS.find((bucket) => s.startsWith(`${bucket}/`));
+    const key = matchedBucket ? s.slice(matchedBucket.length + 1) : s;
+    const bucket = matchedBucket ?? FEATURE_IMAGE_BUCKETS[0];
 
-    return `${SUPABASE_URL}/storage/v1/object/public/${FEATURE_IMAGE_BUCKET}/${key}`;
+    return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${key}`;
   }
 
   // Fallback: return as-is
