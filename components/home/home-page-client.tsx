@@ -8,7 +8,7 @@ import { SafeImage } from '@/components/ui/safe-image';
 
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-const FEATURE_IMAGE_BUCKET = 'feature-image';
+const FEATURE_IMAGE_BUCKETS = ['feature-image', 'featured-image'];
 
 /**
  * Resolve image urls coming from the DB/admin panel.
@@ -18,8 +18,38 @@ const FEATURE_IMAGE_BUCKET = 'feature-image';
  * - Supabase Storage object keys/paths (e.g. "folder/file.jpg" or "feature-image/folder/file.jpg")
  * - Supabase storage urls without host (e.g. "/storage/v1/object/public/...")
  */
-function resolvePublicImageUrl(raw?: string): string {
-  const s = (raw ?? '').trim();
+function resolvePublicImageUrl(raw?: unknown): string {
+  if (raw == null) return '';
+
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      const candidate = resolvePublicImageUrl(entry);
+      if (candidate) return candidate;
+    }
+    return '';
+  }
+
+  if (typeof raw === 'object') {
+    const record = raw as Record<string, unknown>;
+    const objectCandidates = [
+      record.url,
+      record.publicUrl,
+      record.public_url,
+      record.path,
+      record.key,
+      record.src,
+      record.image_url,
+      record.imageUrl,
+    ];
+
+    for (const candidate of objectCandidates) {
+      const resolved = resolvePublicImageUrl(candidate);
+      if (resolved) return resolved;
+    }
+    return '';
+  }
+
+  const s = String(raw ?? '').trim();
   if (!s) return '';
 
   // Absolute / protocol-relative
@@ -41,15 +71,55 @@ function resolvePublicImageUrl(raw?: string): string {
 
   // Treat as a Supabase Storage object key/path
   if (SUPABASE_URL) {
-    const key = s.startsWith(`${FEATURE_IMAGE_BUCKET}/`)
-      ? s.slice(FEATURE_IMAGE_BUCKET.length + 1)
-      : s;
+    const matchedBucket = FEATURE_IMAGE_BUCKETS.find((bucket) => s.startsWith(`${bucket}/`));
+    const key = matchedBucket ? s.slice(matchedBucket.length + 1) : s;
+    const bucket = matchedBucket ?? FEATURE_IMAGE_BUCKETS[0];
 
-    return `${SUPABASE_URL}/storage/v1/object/public/${FEATURE_IMAGE_BUCKET}/${key}`;
+    return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${key}`;
   }
 
   // Fallback: return as-is
   return s;
+}
+
+function getFeaturedImageSrc(img: any, isMobile: boolean): string {
+  const raw = isMobile
+    ? (img?.mobile_image_url ??
+        img?.mobileImageUrl ??
+        img?.mobile_image ??
+        img?.mobileImage ??
+        img?.image_url ??
+        img?.imageUrl ??
+        img?.desktop_image_url ??
+        img?.desktopImageUrl)
+    : (img?.image_url ??
+        img?.imageUrl ??
+        img?.desktop_image_url ??
+        img?.desktopImageUrl ??
+        img?.mobile_image_url ??
+        img?.mobileImageUrl ??
+        img?.mobile_image ??
+        img?.mobileImage);
+
+  const resolved = resolvePublicImageUrl(String(raw || ''));
+  if (resolved) return resolved;
+
+  const fallbackCandidates = [
+    img?.image,
+    img?.image_path,
+    img?.path,
+    img?.url,
+    img?.file_url,
+    img?.file_path,
+    img?.public_url,
+  ];
+
+  for (const candidate of fallbackCandidates) {
+    const fallback = resolvePublicImageUrl(String(candidate || ''));
+    if (fallback) return fallback;
+  }
+
+  return '';
 }
 // Trust badges are intentionally not shown on the homepage.
 import { supabase } from '@/lib/supabase/client';
@@ -780,33 +850,25 @@ Whether you’re enjoying music on your daily commute or relaxing at home, our a
               >
                 <CarouselContent className="-ml-0">
                   {heroFeaturedImages.map((item: any, idx: number) => {
-                    const rawSrc = isMobileViewport
-                      ? (item?.mobile_image_url ||
-                          item?.mobileImageUrl ||
-                          item?.mobile_image ||
-                          item?.mobileImage ||
-                          item?.image_url ||
-                          item?.imageUrl)
-                      : (item?.image_url ||
-                          item?.imageUrl ||
-                          item?.desktop_image_url ||
-                          item?.desktopImageUrl ||
-                          item?.mobile_image_url ||
-                          item?.mobileImageUrl);
-
-                    const src = resolvePublicImageUrl(String(rawSrc || ''));
+                    const src = getFeaturedImageSrc(item, isMobileViewport);
 
                     const slide = (
                       <div className="relative w-full h-[220px] md:h-[380px] bg-gray-100">
-                        <SafeImage
-                          src={src}
-                          alt={String(item?.title || 'Featured')}
-                          fill
-                          sizes="(max-width: 768px) 100vw, 1200px"
-                          className="object-cover"
-                          loading={idx === 0 ? 'eager' : 'lazy'}
-                          draggable={false}
-                        />
+                        {src ? (
+                          <SafeImage
+                            src={src}
+                            alt={String(item?.title || 'Featured')}
+                            fill
+                            sizes="(max-width: 768px) 100vw, 1200px"
+                            className="object-cover"
+                            loading={idx === 0 ? 'eager' : 'lazy'}
+                            draggable={false}
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
+                            Image unavailable
+                          </div>
+                        )}
                       </div>
                     );
 
@@ -1505,61 +1567,48 @@ Whether you’re enjoying music on your daily commute or relaxing at home, our a
                     setApi={setInfoCarouselApi}
                   >
                     <CarouselContent className="h-full">
-                      {infoCarouselImages.map((img: any) => (
-                        <CarouselItem key={img.id} className="h-full">
-                          {img.link_url ? (
-                            <Link href={img.link_url} prefetch={false} className="block h-full">
+                      {infoCarouselImages.map((img: any) => {
+                        const src = getFeaturedImageSrc(img, isMobileViewport);
+                        return (
+                          <CarouselItem key={img.id} className="h-full">
+                            {img.link_url ? (
+                              <Link href={img.link_url} prefetch={false} className="block h-full">
+                                <div className="relative w-full h-full bg-gray-100">
+                                  {src ? (
+                                    <SafeImage
+                                      src={src}
+                                      alt={img.title || 'Featured'}
+                                      fill
+                                      sizes="(max-width: 768px) 100vw, 400px"
+                                      className="object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
+                                      Image unavailable
+                                    </div>
+                                  )}
+                                </div>
+                              </Link>
+                            ) : (
                               <div className="relative w-full h-full bg-gray-100">
-                                <SafeImage
-                                  src={resolvePublicImageUrl(
-                                    isMobileViewport
-                                      ? (img?.mobile_image_url ??
-                                          img?.mobileImageUrl ??
-                                          img?.mobile_image ??
-                                          img?.mobileImage ??
-                                          img?.image_url ??
-                                          img?.imageUrl)
-                                      : (img?.image_url ??
-                                          img?.imageUrl ??
-                                          img?.desktop_image_url ??
-                                          img?.desktopImageUrl ??
-                                          img?.mobile_image_url ??
-                                          img?.mobileImageUrl)
-                                  )}
-                                  alt={img.title || 'Featured'}
-                                  fill
-                                  sizes="(max-width: 768px) 100vw, 400px"
-                                  className="object-cover"
-                                />
+                                {src ? (
+                                  <SafeImage
+                                    src={src}
+                                    alt={img.title || 'Featured'}
+                                    fill
+                                    sizes="(max-width: 768px) 100vw, 400px"
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
+                                    Image unavailable
+                                  </div>
+                                )}
                               </div>
-                            </Link>
-                          ) : (
-                            <div className="relative w-full h-full bg-gray-100">
-                              <SafeImage
-                                src={resolvePublicImageUrl(
-                                    isMobileViewport
-                                      ? (img?.mobile_image_url ??
-                                          img?.mobileImageUrl ??
-                                          img?.mobile_image ??
-                                          img?.mobileImage ??
-                                          img?.image_url ??
-                                          img?.imageUrl)
-                                      : (img?.image_url ??
-                                          img?.imageUrl ??
-                                          img?.desktop_image_url ??
-                                          img?.desktopImageUrl ??
-                                          img?.mobile_image_url ??
-                                          img?.mobileImageUrl)
-                                  )}
-                                alt={img.title || 'Featured'}
-                                fill
-                                sizes="(max-width: 768px) 100vw, 400px"
-                                className="object-cover"
-                              />
-                            </div>
-                          )}
-                        </CarouselItem>
-                      ))}
+                            )}
+                          </CarouselItem>
+                        );
+                      })}
                     </CarouselContent>
 
                     {infoCarouselImages.length > 1 ? (
