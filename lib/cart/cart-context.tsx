@@ -16,6 +16,7 @@ interface ProductLite {
   category_slug?: string | null;
   color_name?: string | null;
   color_hex?: string | null;
+  size_chart?: any;
 }
 
 interface CartItem {
@@ -221,7 +222,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
         const { data: products, error } = await supabase
           .from('products')
-          .select('id, name, slug, price, images, stock_quantity, category_id, color_name, color_hex, category:categories(name,slug)')
+          .select('id, name, slug, price, images, stock_quantity, category_id, color_name, color_hex, size_chart, category:categories(name,slug)')
           .in('id', productIds);
 
         if (error || !products) {
@@ -290,6 +291,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             category_id,
             color_name,
             color_hex,
+            size_chart,
             category:categories(name,slug)
           )
         `

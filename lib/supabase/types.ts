@@ -61,6 +61,7 @@ export interface Product {
   color_group_id?: string | null;
   color_name?: string | null;
   color_hex?: string | null;
+  size_chart?: any;
   is_active: boolean;
   is_featured: boolean;
   seller_id: string | null;

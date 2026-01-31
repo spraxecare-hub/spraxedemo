@@ -54,6 +54,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { parseSizeChart, sanitizeSizeChart, type SizeOption } from '@/lib/utils/size-chart';
 
 type Product = {
   id: string;
@@ -77,6 +78,7 @@ type Product = {
   color_name?: string | null;
   color_hex?: string | null;
   description?: string | null;
+  size_chart?: any;
 };
 
 type VariantDraft = {
@@ -261,6 +263,8 @@ export default function InventoryPage() {
   // manual specs
   const [specs, setSpecs] = useState<Array<{ label: string; value: string }>>([{ label: '', value: '' }]);
 
+  const [sizeChart, setSizeChart] = useState<SizeOption[]>([]);
+
   // images state (edited separately)
   const [imageTab, setImageTab] = useState<'manage' | 'upload' | 'hotlink'>('manage');
   const [images, setImages] = useState<string[]>([]);
@@ -378,7 +382,8 @@ export default function InventoryPage() {
         color_group_id,
         color_name,
         color_hex,
-        description
+        description,
+        size_chart
       `,
         { count: 'exact' }
       );
@@ -569,6 +574,7 @@ export default function InventoryPage() {
     setGroupProducts([]);
     setVariantEdits({});
     setSelectedVariantId('');
+    setSizeChart([]);
 
     setNewUrl('');
     setImageTab('manage');
@@ -601,7 +607,8 @@ export default function InventoryPage() {
             color_group_id,
             color_name,
             color_hex,
-            description
+            description,
+            size_chart
           `
         )
         .eq('color_group_id', gid);
@@ -648,6 +655,7 @@ export default function InventoryPage() {
 
       // Keep description in a dedicated state and ensure all drafts match it
       setDescription(String((base as any).description || ''));
+      setSizeChart(parseSizeChart((base as any).size_chart));
 
       setEditingBase(base);
       setGroupProducts(group);
@@ -906,6 +914,8 @@ export default function InventoryPage() {
     setSaving(true);
     try {
       const now = new Date().toISOString();
+      const cleanedSizeChart = sanitizeSizeChart(sizeChart);
+      const sizeChartPayload = cleanedSizeChart.length ? cleanedSizeChart : null;
 
       // Update existing + insert new variants
       for (const [id, d] of Object.entries(variantEdits)) {
@@ -928,6 +938,7 @@ export default function InventoryPage() {
           color_group_id: groupId,
           color_name: isBase ? null : String(d.color_name || '').trim() || null,
           color_hex: isBase ? null : String(d.color_hex || '').trim() || null,
+          size_chart: sizeChartPayload,
           updated_at: now,
         };
 
@@ -1969,6 +1980,149 @@ export default function InventoryPage() {
                     onClick={() => setSpecs((prev) => [...prev, { label: '', value: '' }])}
                   >
                     <Plus className="h-4 w-4" /> Add spec
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <div>
+                  <div className="font-semibold text-gray-900">Size Options & Measurements</div>
+                  <div className="text-xs text-gray-500">Used for mens/womens fashion sizing on the storefront.</div>
+                </div>
+
+                <div className="space-y-3">
+                  {sizeChart.map((entry, idx) => (
+                    <div key={`${entry.size}-${idx}`} className="rounded-xl border bg-white p-4 space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                        <div className="md:col-span-4">
+                          <Label className="text-xs">Size label</Label>
+                          <Input
+                            value={entry.size}
+                            onChange={(e) =>
+                              setSizeChart((prev) =>
+                                prev.map((item, i) => (i === idx ? { ...item, size: e.target.value } : item))
+                              )
+                            }
+                            placeholder="S, M, L, XL..."
+                            className="bg-white"
+                          />
+                        </div>
+                        <div className="md:col-span-8 flex items-center justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="bg-white"
+                            onClick={() => setSizeChart((prev) => prev.filter((_, i) => i !== idx))}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Remove size
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-gray-700">Measurements</div>
+                        {(entry.measurements || []).map((m, mIdx) => (
+                          <div key={`${m.label}-${mIdx}`} className="grid grid-cols-1 md:grid-cols-12 gap-3 rounded-lg border bg-gray-50 p-3">
+                            <div className="md:col-span-5">
+                              <Label className="text-xs">Label</Label>
+                              <Input
+                                value={m.label}
+                                onChange={(e) =>
+                                  setSizeChart((prev) =>
+                                    prev.map((item, i) =>
+                                      i === idx
+                                        ? {
+                                            ...item,
+                                            measurements: item.measurements.map((row, j) =>
+                                              j === mIdx ? { ...row, label: e.target.value } : row
+                                            ),
+                                          }
+                                        : item
+                                    )
+                                  )
+                                }
+                                placeholder="Chest, Waist, Length..."
+                                className="bg-white"
+                              />
+                            </div>
+                            <div className="md:col-span-6">
+                              <Label className="text-xs">Value</Label>
+                              <Input
+                                value={m.value}
+                                onChange={(e) =>
+                                  setSizeChart((prev) =>
+                                    prev.map((item, i) =>
+                                      i === idx
+                                        ? {
+                                            ...item,
+                                            measurements: item.measurements.map((row, j) =>
+                                              j === mIdx ? { ...row, value: e.target.value } : row
+                                            ),
+                                          }
+                                        : item
+                                    )
+                                  )
+                                }
+                                placeholder="38-40 in, 76 cm..."
+                                className="bg-white"
+                              />
+                            </div>
+                            <div className="md:col-span-1 flex items-end justify-end">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="bg-white"
+                                onClick={() =>
+                                  setSizeChart((prev) =>
+                                    prev.map((item, i) =>
+                                      i === idx
+                                        ? { ...item, measurements: item.measurements.filter((_, j) => j !== mIdx) }
+                                        : item
+                                    )
+                                  )
+                                }
+                                title="Remove measurement"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="bg-white gap-2"
+                          onClick={() =>
+                            setSizeChart((prev) =>
+                              prev.map((item, i) =>
+                                i === idx
+                                  ? { ...item, measurements: [...(item.measurements || []), { label: '', value: '' }] }
+                                  : item
+                              )
+                            )
+                          }
+                        >
+                          <Plus className="h-4 w-4" /> Add measurement
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="bg-white gap-2"
+                    onClick={() =>
+                      setSizeChart((prev) => [...prev, { size: '', measurements: [{ label: '', value: '' }] }])
+                    }
+                  >
+                    <Plus className="h-4 w-4" /> Add size
                   </Button>
                 </div>
               </div>
