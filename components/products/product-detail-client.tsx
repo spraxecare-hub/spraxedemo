@@ -1014,6 +1014,7 @@ export default function ProductDetailClient({
     () => categoryChain.some((cat) => isClothingCategory(cat?.name, cat?.slug)),
     [categoryChain]
   );
+  const isFashionLayout = isClothing;
 
   const sizeChart = useMemo(() => parseSizeChart((product as any)?.size_chart), [product]);
   const sizeOptions = useMemo(() => {
@@ -1707,11 +1708,11 @@ export default function ProductDetailClient({
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50">
+    <div className={isFashionLayout ? 'min-h-screen flex flex-col bg-white' : 'min-h-screen flex flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50'}>
       <Header />
 
       <main className="flex-1">
-        <div className="container mx-auto px-4 py-6 lg:py-10">
+        <div className={isFashionLayout ? 'container mx-auto px-4 py-6 lg:py-8' : 'container mx-auto px-4 py-6 lg:py-10'}>
           <nav className="flex items-center text-sm text-gray-500 mb-5 overflow-x-auto whitespace-nowrap pb-2">
             <Link href="/" className="hover:text-blue-900 flex items-center">
               <Home className="w-4 h-4 mr-1" />
@@ -1739,9 +1740,9 @@ export default function ProductDetailClient({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Gallery */}
             <section className="lg:col-span-7 space-y-4">
-              <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+              <div className={isFashionLayout ? 'bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden' : 'bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden'}>
                 <div
-                    className="relative aspect-square bg-gray-50 overflow-hidden"
+                    className={`relative aspect-square overflow-hidden ${isFashionLayout ? 'bg-gray-100' : 'bg-gray-50'}`}
                     onMouseEnter={() => setZoomed(true)}
                     onMouseLeave={() => {
                       setZoomed(false);
@@ -1844,7 +1845,7 @@ export default function ProductDetailClient({
                 </div>
 
                 {imgs.length > 1 && (
-                  <div className="p-4 border-t border-gray-100">
+                  <div className={isFashionLayout ? 'p-4 border-t border-gray-200' : 'p-4 border-t border-gray-100'}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-xs text-gray-500">
                         Images <span className="text-gray-300">•</span> {activeImage + 1}/{imgs.length}
@@ -1858,7 +1859,7 @@ export default function ProductDetailClient({
                           <button
                             key={img + idx}
                             onClick={() => setActiveImage(idx)}
-                            className={`relative h-20 w-20 rounded-xl overflow-hidden border transition ${
+                            className={`relative h-20 w-20 ${isFashionLayout ? 'rounded-md' : 'rounded-xl'} overflow-hidden border transition ${
                               idx === activeImage
                                 ? 'border-blue-700 ring-2 ring-blue-600/20'
                                 : 'border-gray-200 hover:border-gray-300'
@@ -1891,7 +1892,7 @@ export default function ProductDetailClient({
             {/* Sticky buy box */}
             <aside className="lg:col-span-5">
               <div className="lg:sticky lg:top-24 space-y-4">
-                <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
+                <div className={isFashionLayout ? 'bg-white border border-gray-200 rounded-xl shadow-sm p-6' : 'bg-white border border-gray-100 rounded-2xl shadow-sm p-6'}>
                   <div className="flex items-start justify-between gap-3">
                     <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight">
                       {product.name}
@@ -1933,8 +1934,8 @@ export default function ProductDetailClient({
                       {retail > 0 && retail > price && (
                         <div className="mt-1 flex items-center gap-2">
                           <div className="text-sm text-gray-500 line-through">{moneyBDT(retail)}</div>
-                          <Badge className="bg-green-50 text-green-700 border border-green-200 rounded-full">
-                            Save {pct}% ({moneyBDT(savings)})
+                          <Badge className={isFashionLayout ? 'bg-red-50 text-red-700 border border-red-200 rounded-full' : 'bg-green-50 text-green-700 border border-green-200 rounded-full'}>
+                            {isFashionLayout ? `${pct}% Off` : `Save ${pct}% (${moneyBDT(savings)})`}
                           </Badge>
                         </div>
                       )}
@@ -2008,7 +2009,8 @@ export default function ProductDetailClient({
                               type="button"
                               onClick={() => setSelectedSize(size)}
                               className={[
-                                'inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold transition',
+                                'inline-flex items-center justify-center text-xs font-semibold transition',
+                                isFashionLayout ? 'h-9 w-12 rounded-md border' : 'rounded-full border px-4 py-2',
                                 active ? 'border-blue-700 bg-blue-50 text-blue-900' : 'border-gray-200 bg-white hover:border-gray-300',
                               ].join(' ')}
                             >
@@ -2045,13 +2047,13 @@ export default function ProductDetailClient({
                       Quantity {maxQty > 0 ? <span className="text-xs text-gray-500">(max {maxQty})</span> : null}
                     </Label>
 
-                    <div className="flex items-center gap-3">
+                    <div className={isFashionLayout ? 'flex items-center gap-3' : 'flex items-center gap-3'}>
                       <Button
                         variant="outline"
                         size="icon"
                         onClick={() => setQuantity((q) => clamp(q - 1, 1, maxQty || 1))}
                         disabled={quantity <= 1}
-                        className="rounded-xl bg-white"
+                        className={isFashionLayout ? 'rounded-md bg-white' : 'rounded-xl bg-white'}
                         type="button"
                       >
                         <Minus className="h-4 w-4" />
@@ -2067,7 +2069,7 @@ export default function ProductDetailClient({
                           }}
                           min={1}
                           max={maxQty || 1}
-                          className="h-11 text-center rounded-xl bg-white"
+                          className={isFashionLayout ? 'h-10 text-center rounded-md bg-white' : 'h-11 text-center rounded-xl bg-white'}
                         />
                       </div>
 
@@ -2076,33 +2078,45 @@ export default function ProductDetailClient({
                         size="icon"
                         onClick={() => setQuantity((q) => clamp(q + 1, 1, maxQty || 1))}
                         disabled={maxQty > 0 ? quantity >= maxQty : true}
-                        className="rounded-xl bg-white"
+                        className={isFashionLayout ? 'rounded-md bg-white' : 'rounded-xl bg-white'}
                         type="button"
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
+
+                      {isFashionLayout && (
+                        <Button
+                          className="bg-gray-900 hover:bg-black text-white h-10 px-6 rounded-md text-xs font-semibold"
+                          onClick={handleAddToCart}
+                          disabled={adding || outOfStock || (isClothing && !selectedSize)}
+                        >
+                          {adding ? 'Adding...' : 'Add to Cart'}
+                        </Button>
+                      )}
                     </div>
 
-                    <div className="mt-3 rounded-2xl bg-blue-50 border border-blue-100 p-4 flex items-center justify-between">
-                      <div className="text-sm font-semibold text-blue-900">Total</div>
-                      <div className="text-lg font-extrabold text-blue-900">{moneyBDT(total)}</div>
+                    <div className={isFashionLayout ? 'mt-3 flex items-center justify-between text-sm text-gray-700' : 'mt-3 rounded-2xl bg-blue-50 border border-blue-100 p-4 flex items-center justify-between'}>
+                      <div className={isFashionLayout ? 'font-semibold' : 'text-sm font-semibold text-blue-900'}>Total</div>
+                      <div className={isFashionLayout ? 'text-base font-bold text-gray-900' : 'text-lg font-extrabold text-blue-900'}>{moneyBDT(total)}</div>
                     </div>
                   </div>
 
                   <div className="mt-5 space-y-3">
-                    <Button
-                      className="w-full bg-blue-900 hover:bg-blue-800 h-11 sm:h-12 rounded-xl text-sm sm:text-base font-extrabold"
-                      onClick={handleBuyNow}
-                      disabled={adding || outOfStock || (isClothing && !selectedSize)}
-                    >
-                      <CreditCard className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                      {adding ? 'Adding...' : 'Buy Now'}
-                    </Button>
+                    {!isFashionLayout && (
+                      <Button
+                        className="w-full bg-blue-900 hover:bg-blue-800 h-11 sm:h-12 rounded-xl text-sm sm:text-base font-extrabold"
+                        onClick={handleBuyNow}
+                        disabled={adding || outOfStock || (isClothing && !selectedSize)}
+                      >
+                        <CreditCard className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                        {adding ? 'Adding...' : 'Buy Now'}
+                      </Button>
+                    )}
 
                     <Button
                       variant="outline"
                       onClick={handleContactSeller}
-                      className="w-full h-10 sm:h-11 rounded-xl border-green-600 text-green-600 hover:bg-green-50 font-semibold bg-white text-sm"
+                      className={isFashionLayout ? 'w-full h-10 rounded-md border-green-600 text-green-600 hover:bg-green-50 font-semibold bg-white text-sm' : 'w-full h-10 sm:h-11 rounded-xl border-green-600 text-green-600 hover:bg-green-50 font-semibold bg-white text-sm'}
                       type="button"
                     >
                       <MessageCircle className="mr-2 h-4 w-4" />
