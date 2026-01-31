@@ -22,6 +22,7 @@ type ProductRow = {
   supplier_name: string | null;
   tags: any;
   is_active: boolean;
+  size_chart?: any;
   color_group_id?: string | null;
   color_name?: string | null;
   color_hex?: string | null;
@@ -64,7 +65,7 @@ async function fetchProductUncached(slug: string): Promise<ProductRow | null> {
   const res: { data: ProductRow | null; error: any } = await supabase
     .from('products')
     .select(
-      'id,category_id,name,slug,description,sku,images,price,base_price,retail_price,stock_quantity,unit,supplier_name,tags,is_active,color_group_id,color_name,color_hex'
+      'id,category_id,name,slug,description,sku,images,price,base_price,retail_price,stock_quantity,unit,supplier_name,tags,is_active,size_chart,color_group_id,color_name,color_hex'
     )
     .eq('slug', slug)
     .eq('is_active', true)

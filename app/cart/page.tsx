@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { DEFAULT_SIZE_OPTIONS, parseSizeChart } from '@/lib/utils/size-chart';
 import {
   Trash2,
   Phone,
@@ -43,7 +44,6 @@ const BKASH_NUMBER = '01XXXXXXXXX';
 
 // ✅ Put your bKash logo here: /public/payments/bkash.svg
 const BKASH_LOGO_PATH = '/payments/bkash.svg';
-const SIZE_OPTIONS = ['S', 'M', 'L', 'XL'];
 
 const isClothingCategory = (name?: string | null, slug?: string | null) => {
   const hay = `${name || ''} ${slug || ''}`.toLowerCase();
@@ -617,6 +617,11 @@ export default function CartPage() {
               const lineTotal = price * item.quantity;
               const colorName = String(item.product?.color_name || '').trim();
               const isClothing = isClothingCategory(item.product?.category_name, item.product?.category_slug);
+              const sizeChart = parseSizeChart((item.product as any)?.size_chart);
+              const sizeOptions = Array.from(
+                new Set(sizeChart.length ? sizeChart.map((entry) => entry.size) : DEFAULT_SIZE_OPTIONS)
+              );
+              const selectedSizeDetails = sizeChart.find((entry) => entry.size === item.size);
 
               return (
                 <div key={item.id} className="p-4 sm:p-5">
@@ -662,7 +667,7 @@ export default function CartPage() {
                         <div className="mt-3">
                           <div className="text-xs font-semibold text-gray-700">Size</div>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {SIZE_OPTIONS.map((size) => {
+                            {sizeOptions.map((size) => {
                               const active = item.size === size;
                               return (
                                 <button
@@ -682,6 +687,23 @@ export default function CartPage() {
                           </div>
                           {!item.size && (
                             <div className="mt-1 text-xs text-red-600">Select a size to continue checkout.</div>
+                          )}
+                          {item.size && (
+                            <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-xs text-gray-700">
+                              <div className="font-semibold text-blue-900">Measurements for {item.size}</div>
+                              {selectedSizeDetails?.measurements?.length ? (
+                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                  {selectedSizeDetails.measurements.map((m, idx) => (
+                                    <div key={`${m.label}-${idx}`} className="rounded-lg border border-blue-100 bg-white px-3 py-2">
+                                      <div className="text-[11px] uppercase tracking-wide text-gray-500">{m.label}</div>
+                                      <div className="text-sm font-semibold text-gray-900">{m.value}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="mt-1 text-xs text-gray-600">Measurements will be provided soon.</div>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
