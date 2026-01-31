@@ -48,8 +48,8 @@ import {
 
 const isClothingCategory = (name?: string | null, slug?: string | null) => {
   const hay = `${name || ''} ${slug || ''}`.toLowerCase();
-  const isGender = /(men|mens|women|womens|woman|female|male)/i.test(hay);
-  const isClothing = /(cloth|clothing|apparel|fashion|wear)/i.test(hay);
+  const isGender = /\b(men|mens|man|mans|women|womens|woman|female|male)\b/i.test(hay);
+  const isClothing = /\b(cloth|clothing|apparel|fashion|wear)\b/i.test(hay);
   return isGender && isClothing;
 };
 
@@ -939,7 +939,7 @@ export default function ProductDetailClient({
   initialCategoryChain = [],
   initialRelated = [],
 }: ProductDetailClientProps) {
-  const { addToCart: addToCartContext } = useCart();
+  const { addToCart: addToCartContext, refreshCart } = useCart();
   const { items: compareItems, toggle, isInCompare, maxItems } = useCompare();
   const router = useRouter();
   const { toast } = useToast();
@@ -1392,7 +1392,10 @@ export default function ProductDetailClient({
 
   const handleBuyNow = async () => {
     const ok = await handleAddToCart();
-    if (ok) router.push('/cart');
+    if (ok) {
+      await refreshCart();
+      router.push('/cart?checkout=1');
+    }
   };
 
   const handleContactSeller = () => {

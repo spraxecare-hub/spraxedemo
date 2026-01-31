@@ -70,8 +70,8 @@ const BUCKET = 'product-images';
 
 const isClothingCategory = (name?: string | null, slug?: string | null) => {
   const hay = `${name || ''} ${slug || ''}`.toLowerCase();
-  const isGender = /(men|mens|women|womens|woman|female|male)/i.test(hay);
-  const isClothing = /(cloth|clothing|apparel|fashion|wear)/i.test(hay);
+  const isGender = /\b(men|mens|man|mans|women|womens|woman|female|male)\b/i.test(hay);
+  const isClothing = /\b(cloth|clothing|apparel|fashion|wear)\b/i.test(hay);
   return isGender && isClothing;
 };
 
