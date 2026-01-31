@@ -578,7 +578,7 @@ export default function CartPage() {
             <ShoppingBag className="h-4 w-4 text-blue-900" />
           </div>
           <div>
-            <div className="text-sm text-gray-600">Cart Items</div>
+            <div className="text-sm text-gray-600">Order Summary (অর্ডার সারাংশ)</div>
             <div className="text-lg font-bold text-gray-900">
               {cartCount} item{cartCount > 1 ? 's' : ''}
             </div>
@@ -588,7 +588,7 @@ export default function CartPage() {
         <div className="flex items-center gap-2">
           <Link href="/products">
             <Button variant="outline" className="h-9">
-              Continue Shopping
+              Continue Shopping (শপিং চালিয়ে যান)
             </Button>
           </Link>
           <Button
@@ -597,7 +597,7 @@ export default function CartPage() {
             onClick={() => clearCart()}
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Clear Cart
+            Clear Cart (কার্ট খালি করুন)
           </Button>
         </div>
       </div>
@@ -605,7 +605,7 @@ export default function CartPage() {
       {missingSize && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Size required</AlertTitle>
+          <AlertTitle>Size required (সাইজ দরকার)</AlertTitle>
           <AlertDescription className="text-xs">
             Select a size for each clothing item to continue checkout.
           </AlertDescription>
@@ -615,7 +615,7 @@ export default function CartPage() {
       {/* Cart Items Card */}
       <Card className="shadow-sm">
         <CardHeader className="border-b bg-white">
-          <CardTitle className="text-base text-gray-900">Items</CardTitle>
+          <CardTitle className="text-base text-gray-900">Items (আইটেম)</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y lg:max-h-[520px] lg:overflow-y-auto">
@@ -693,7 +693,7 @@ export default function CartPage() {
                             })}
                           </div>
                           {!item.size && (
-                            <div className="mt-1 text-xs text-red-600">Select a size to continue checkout.</div>
+                            <div className="mt-1 text-xs text-red-600">Select a size to continue checkout (চেকআউটের জন্য সাইজ দিন)।</div>
                           )}
                           {item.size && (
                             <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-xs text-gray-700">
@@ -746,7 +746,7 @@ export default function CartPage() {
                             onClick={() => removeItem(item.id)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Remove
+                            Remove (সরান)
                           </Button>
                         </div>
                       </div>
@@ -768,20 +768,20 @@ export default function CartPage() {
                 <ShieldCheck className="h-5 w-5 text-blue-900" />
               </div>
               <div>
-                <div className="font-semibold text-gray-900">Reliable delivery</div>
+                <div className="font-semibold text-gray-900">Reliable delivery (নির্ভরযোগ্য ডেলিভারি)</div>
                 <div className="text-sm text-gray-600">
-                  We confirm every order and deliver quickly. Keep your phone available for confirmation.
+                  We confirm every order and deliver quickly. Keep your phone available for confirmation (অর্ডার নিশ্চিত করতে ফোন হাতে রাখুন)।
                 </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
               <div className="inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-lg border bg-white px-3 py-2 text-sm text-gray-700">
                 <CreditCard className="h-4 w-4 text-gray-500" />
-                COD / bKash
+                COD / bKash (ক্যাশ / বিকাশ)
               </div>
               <div className="inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-lg border bg-white px-3 py-2 text-sm text-gray-700">
                 <Truck className="h-4 w-4 text-gray-500" />
-                Fast Shipping
+                Fast Shipping (দ্রুত শিপিং)
               </div>
             </div>
           </div>
@@ -833,31 +833,26 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50">
+    <div className="min-h-screen flex flex-col bg-white">
       <Header />
 
-      {/* Subtle top gradient band */}
-      <div className="bg-gradient-to-b from-blue-50/70 to-transparent">
-        <div className="mx-auto w-full max-w-[1200px] px-4 md:px-6 pt-8 pb-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      {/* Simple checkout header */}
+      <div className="border-b bg-white">
+        <div className="mx-auto w-full max-w-[1200px] px-4 md:px-6 py-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 text-sm font-semibold text-blue-900">
-                <ShoppingBag className="h-4 w-4" />
-                Checkout (চেকআউট)
-                <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-xs text-gray-700 border">
-                  <Sparkles className="h-3 w-3 text-blue-900" />
-                  Secure checkout
-                </span>
+              <div className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                <ShieldCheck className="h-4 w-4" />
+                Secure checkout (নিরাপদ চেকআউট)
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
-                Review your order (অর্ডার পর্যালোচনা)
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
+                Checkout (চেকআউট)
               </h1>
               <p className="text-sm text-gray-600">
-                Confirm items, shipping, and contact info. Choose <b>Cash on Delivery</b> or <b>bKash</b>.
+                Review your order (অর্ডার পর্যালোচনা)
               </p>
             </div>
 
-            {/* Steps */}
             <div className="flex flex-wrap items-center gap-2">
               <StepPill active={checkoutStep >= 1} title="Details (বিস্তারিত)" icon={<User className="h-3.5 w-3.5" />} />
               <StepPill active={checkoutStep >= 2} title="Payment (পেমেন্ট)" icon={<CreditCard className="h-3.5 w-3.5" />} />
@@ -874,14 +869,14 @@ export default function CartPage() {
               <div className="mx-auto h-12 w-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center">
                 <ShoppingBag className="h-6 w-6 text-blue-900" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900">Your cart is empty</h2>
-              <p className="text-sm text-gray-600">Browse products and add items to continue to checkout.</p>
+              <h2 className="text-xl font-semibold text-gray-900">Your cart is empty (কার্ট খালি)</h2>
+              <p className="text-sm text-gray-600">Browse products and add items to continue to checkout (পণ্য যোগ করে চেকআউট করুন)।</p>
               <div className="flex justify-center gap-2">
                 <Link href="/products">
-                  <Button className="bg-blue-900 hover:bg-blue-800">Start Shopping</Button>
+                  <Button className="bg-blue-900 hover:bg-blue-800">Start Shopping (শপিং শুরু করুন)</Button>
                 </Link>
                 <Link href="/">
-                  <Button variant="outline">Back to Home</Button>
+                  <Button variant="outline">Back to Home (হোমে ফিরে যান)</Button>
                 </Link>
               </div>
             </CardContent>
@@ -891,13 +886,13 @@ export default function CartPage() {
             {checkoutStep === 1 && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
                 <div className="lg:col-span-2 order-1">
-                  <Card className="shadow-md border-blue-100 overflow-hidden">
+                  <Card className="shadow-sm border-gray-200 overflow-hidden">
                     <CardHeader className="bg-white border-b">
                       <CardTitle className="text-base text-gray-900">
                         Step 1: Contact & Address (ধাপ ১: যোগাযোগ ও ঠিকানা)
                       </CardTitle>
-                      <div className="text-xs text-gray-500">Add your delivery details before payment.</div>
-                      <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
+                      <div className="text-xs text-gray-500">Add your delivery details before payment (পেমেন্টের আগে ডেলিভারি তথ্য যোগ করুন)।</div>
+                      <div className="text-[11px] text-emerald-700 font-semibold">Secure checkout (নিরাপদ চেকআউট)</div>
                     </CardHeader>
                     <CardContent className="p-4 space-y-4">
 
@@ -905,15 +900,15 @@ export default function CartPage() {
                   <div className="rounded-xl border bg-gray-50/60 p-4">
                     <div className="flex items-center justify-between mb-2">
                       <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                        <User className="h-4 w-4" /> Full Name
+                        <User className="h-4 w-4" /> Full Name (পূর্ণ নাম)
                       </Label>
                       {user ? (
                         <Link href="/dashboard" className="text-xs text-blue-700 hover:underline flex items-center gap-1">
-                          <ExternalLink className="h-3 w-3" /> Edit
+                          <ExternalLink className="h-3 w-3" /> Edit (সম্পাদনা)
                         </Link>
                       ) : (
                         <Link href="/login" className="text-xs text-blue-700 hover:underline flex items-center gap-1">
-                          <ExternalLink className="h-3 w-3" /> Sign in (optional)
+                          <ExternalLink className="h-3 w-3" /> Sign in (optional) (ইচ্ছামত লগইন)
                         </Link>
                       )}
                     </div>
@@ -938,15 +933,15 @@ export default function CartPage() {
                   <div className="rounded-xl border bg-gray-50/60 p-4">
                     <div className="flex items-center justify-between mb-2">
                       <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                        <Phone className="h-4 w-4" /> Phone Number
+                        <Phone className="h-4 w-4" /> Phone Number (ফোন নম্বর)
                       </Label>
                       {user ? (
                         <Link href="/dashboard" className="text-xs text-blue-700 hover:underline flex items-center gap-1">
-                          <ExternalLink className="h-3 w-3" /> {hasPhone ? 'Edit' : 'Add'}
+                          <ExternalLink className="h-3 w-3" /> {hasPhone ? 'Edit (সম্পাদনা)' : 'Add (যোগ করুন)'}
                         </Link>
                       ) : (
                         <Link href="/login" className="text-xs text-blue-700 hover:underline flex items-center gap-1">
-                          <ExternalLink className="h-3 w-3" /> Sign in (optional)
+                          <ExternalLink className="h-3 w-3" /> Sign in (optional) (ইচ্ছামত লগইন)
                         </Link>
                       )}
                     </div>
@@ -957,11 +952,11 @@ export default function CartPage() {
                       ) : (
                         <Alert variant="destructive" className="mt-2">
                           <AlertCircle className="h-4 w-4" />
-                          <AlertTitle>Phone required</AlertTitle>
-                          <AlertDescription className="text-xs">
-                            Add your phone number in Profile to place an order.
-                          </AlertDescription>
-                        </Alert>
+                        <AlertTitle>Phone required (ফোন নম্বর দরকার)</AlertTitle>
+                        <AlertDescription className="text-xs">
+                          Add your phone number in Profile to place an order (অর্ডার দিতে ফোন নম্বর দিন)।
+                        </AlertDescription>
+                      </Alert>
                       )
                     ) : (
                       <div className="pl-6 space-y-2">
@@ -971,7 +966,7 @@ export default function CartPage() {
                           placeholder="01XXXXXXXXX"
                           inputMode="tel"
                         />
-                        <div className="text-xs text-gray-500">We'll call this number to confirm your order.</div>
+                        <div className="text-xs text-gray-500">We'll call this number to confirm your order (অর্ডার নিশ্চিত করতে কল করা হবে)।</div>
                         {!guestPhoneOk && guestPhone.trim() && (
                           <div className="text-xs text-red-600">Enter a valid BD phone (01XXXXXXXXX).</div>
                         )}
@@ -983,14 +978,14 @@ export default function CartPage() {
                   <div className="rounded-xl border bg-gray-50/60 p-4">
                     <div className="flex items-center justify-between mb-2">
                       <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                        <Home className="h-4 w-4" /> Delivery Address
+                        <Home className="h-4 w-4" /> Delivery Address (ডেলিভারি ঠিকানা)
                       </Label>
                       {user ? (
                         <Link href="/dashboard" className="text-xs text-blue-700 hover:underline flex items-center gap-1">
-                          <ExternalLink className="h-3 w-3" /> {hasAddress ? 'Edit' : 'Add'}
+                          <ExternalLink className="h-3 w-3" /> {hasAddress ? 'Edit (সম্পাদনা)' : 'Add (যোগ করুন)'}
                         </Link>
                       ) : (
-                        <span className="text-xs text-gray-500">Fill the address below</span>
+                        <span className="text-xs text-gray-500">Fill the address below (নিচে ঠিকানা লিখুন)</span>
                       )}
                     </div>
 
@@ -1003,33 +998,33 @@ export default function CartPage() {
                       ) : (
                         <Alert variant="destructive" className="mt-2">
                           <AlertCircle className="h-4 w-4" />
-                          <AlertTitle>Address required</AlertTitle>
-                          <AlertDescription className="text-xs">
-                            Add your delivery address in Profile to place an order.
-                          </AlertDescription>
-                        </Alert>
+                        <AlertTitle>Address required (ঠিকানা দরকার)</AlertTitle>
+                        <AlertDescription className="text-xs">
+                          Add your delivery address in Profile to place an order (অর্ডার দিতে ঠিকানা দিন)।
+                        </AlertDescription>
+                      </Alert>
                       )
                     ) : (
                       <div className="pl-6 space-y-3">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <Label className="text-xs">Division *</Label>
+                            <Label className="text-xs">Division (বিভাগ) *</Label>
                             <Input value={guestDivision} onChange={(e) => setGuestDivision(e.target.value)} placeholder="Dhaka" />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">District *</Label>
+                            <Label className="text-xs">District (জেলা) *</Label>
                             <Input value={guestDistrict} onChange={(e) => setGuestDistrict(e.target.value)} placeholder="Dhaka" />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">City / Thana *</Label>
+                            <Label className="text-xs">City / Thana (শহর / থানা) *</Label>
                             <Input value={guestCity} onChange={(e) => setGuestCity(e.target.value)} placeholder="Dhanmondi" />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Road / House *</Label>
+                            <Label className="text-xs">Road / House (রোড / বাসা) *</Label>
                             <Input value={guestRoad} onChange={(e) => setGuestRoad(e.target.value)} placeholder="Road 10, House 12" />
                           </div>
                           <div className="space-y-1 sm:col-span-2">
-                            <Label className="text-xs">Zip Code</Label>
+                            <Label className="text-xs">Zip Code (পোস্ট কোড)</Label>
                             <Input value={guestZipCode} onChange={(e) => setGuestZipCode(e.target.value)} placeholder="1205" inputMode="numeric" />
                           </div>
                         </div>
@@ -1039,7 +1034,7 @@ export default function CartPage() {
                         )}
 
                         <div className="rounded-lg border bg-white p-3 text-xs text-gray-700">
-                          <div className="font-semibold text-gray-900 mb-1">Address Preview</div>
+                          <div className="font-semibold text-gray-900 mb-1">Address Preview (ঠিকানার প্রিভিউ)</div>
                           <div className="whitespace-pre-wrap">{guestAddress}</div>
                         </div>
                       </div>
@@ -1050,9 +1045,9 @@ export default function CartPage() {
                     !isProfileComplete && (
                       <Alert variant="destructive" className="py-2">
                         <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Profile incomplete</AlertTitle>
+                        <AlertTitle>Profile incomplete (প্রোফাইল অসম্পূর্ণ)</AlertTitle>
                         <AlertDescription className="text-xs">
-                          Add phone number and address to place an order.
+                          Add phone number and address to place an order (ফোন নম্বর ও ঠিকানা দিন)।
                         </AlertDescription>
                       </Alert>
                     )
@@ -1060,9 +1055,9 @@ export default function CartPage() {
                     !isGuestComplete && (
                       <Alert variant="destructive" className="py-2">
                         <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Missing details</AlertTitle>
+                        <AlertTitle>Missing details (তথ্য অসম্পূর্ণ)</AlertTitle>
                         <AlertDescription className="text-xs">
-                          Add your phone number and delivery address to place an order as a guest.
+                          Add your phone number and delivery address to place an order as a guest (গেস্ট হিসেবে অর্ডার দিতে তথ্য দিন)।
                         </AlertDescription>
                       </Alert>
                     )
@@ -1070,9 +1065,9 @@ export default function CartPage() {
 
                   {!user && (
                     <Alert className="py-2">
-                      <AlertTitle>Guest checkout enabled</AlertTitle>
+                      <AlertTitle>Guest checkout enabled (গেস্ট চেকআউট সক্রিয়)</AlertTitle>
                       <AlertDescription className="text-xs">
-                        You can order without logging in. If you sign in, your saved profile will be used automatically.
+                        You can order without logging in. If you sign in, your saved profile will be used automatically (লগইন ছাড়াই অর্ডার করা যাবে)।
                       </AlertDescription>
                     </Alert>
                   )}
@@ -1083,7 +1078,7 @@ export default function CartPage() {
                       onClick={handleContinueToPayment}
                       disabled={!infoReady}
                     >
-                      Continue to Payment
+                      Continue to Payment (পেমেন্টে যান)
                     </Button>
                   </div>
                   </CardContent>
@@ -1098,13 +1093,13 @@ export default function CartPage() {
             {checkoutStep === 2 && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
                 <div className="lg:col-span-2 order-1">
-                  <Card className="shadow-md border-blue-100 overflow-hidden">
+                  <Card className="shadow-sm border-gray-200 overflow-hidden">
                     <CardHeader className="bg-white border-b">
                       <CardTitle className="text-base text-gray-900">
                         Step 2: Payment & Shipping (ধাপ ২: পেমেন্ট ও শিপিং)
                       </CardTitle>
-                      <div className="text-xs text-gray-500">Choose how you want to pay and where to deliver.</div>
-                      <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
+                      <div className="text-xs text-gray-500">Choose how you want to pay and where to deliver (পেমেন্ট ও ডেলিভারি বেছে নিন)।</div>
+                      <div className="text-[11px] text-emerald-700 font-semibold">Secure checkout (নিরাপদ চেকআউট)</div>
                     </CardHeader>
 
                     <CardContent className="p-4 space-y-4">
@@ -1112,7 +1107,7 @@ export default function CartPage() {
                       {/* ✅ Payment selection */}
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                          <CreditCard className="h-4 w-4" /> Payment Method
+                          <CreditCard className="h-4 w-4" /> Payment Method (পেমেন্ট পদ্ধতি)
                         </Label>
 
                         <RadioGroup
@@ -1123,8 +1118,8 @@ export default function CartPage() {
                           {/* COD */}
                           <PaymentOption
                             active={paymentMethod === 'cod'}
-                            title="Cash on Delivery"
-                            subtitle="Pay when you receive the product"
+                            title="Cash on Delivery (ক্যাশ অন ডেলিভারি)"
+                            subtitle="Pay when you receive the product (পণ্য পাওয়ার পরে পরিশোধ)"
                             onClick={() => setPaymentMethod('cod')}
                             left={
                               <div className="h-9 w-9 rounded-lg border bg-white flex items-center justify-center">
@@ -1138,8 +1133,8 @@ export default function CartPage() {
                           {/* bKash */}
                           <PaymentOption
                             active={paymentMethod === 'bkash'}
-                            title="bKash"
-                            subtitle="Pay now, then provide TRX ID"
+                            title="bKash (বিকাশ)"
+                            subtitle="Pay now, then provide TRX ID (পেমেন্ট করে ট্রান্সেকশন আইডি দিন)"
                             onClick={() => setPaymentMethod('bkash')}
                             left={
                               <div className="h-9 w-9 rounded-lg border bg-white flex items-center justify-center overflow-hidden">
@@ -1159,29 +1154,29 @@ export default function CartPage() {
 
                         {paymentMethod === 'bkash' && (
                           <div className="mt-2 rounded-xl border bg-white p-3 space-y-2">
-                            <div className="text-sm font-semibold text-gray-900">Send bKash to:</div>
+                            <div className="text-sm font-semibold text-gray-900">Send bKash to (বিকাশ পাঠান):</div>
                             <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-3 py-2">
                               <div className="text-sm font-bold text-gray-900">{BKASH_NUMBER}</div>
                               <div className="text-xs text-gray-500">bKash</div>
                             </div>
 
                             <div className="space-y-1.5">
-                              <Label className="text-sm font-semibold text-gray-700">TRX ID</Label>
+                              <Label className="text-sm font-semibold text-gray-700">TRX ID (ট্রান্সেকশন আইডি)</Label>
                               <input
                                 value={trxId}
                                 onChange={(e) => setTrxId(e.target.value)}
-                                placeholder="Enter bKash Transaction ID"
+                                placeholder="Enter bKash Transaction ID (বিকাশ ট্রান্সেকশন আইডি দিন)"
                                 className="w-full h-10 rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue-600"
                               />
                               <div className="text-xs text-gray-500">
-                                Please provide the transaction ID to confirm your order.
+                                Please provide the transaction ID to confirm your order (অর্ডার নিশ্চিত করতে আইডি দিন)।
                               </div>
                             </div>
 
                             <Alert className="py-2">
-                              <AlertTitle className="text-sm">Note</AlertTitle>
+                              <AlertTitle className="text-sm">Note (নোট)</AlertTitle>
                               <AlertDescription className="text-xs">
-                                Orders with bKash will be verified using your TRX ID.
+                                Orders with bKash will be verified using your TRX ID (ট্রান্সেকশন আইডি দিয়ে যাচাই হবে)।
                               </AlertDescription>
                             </Alert>
                           </div>
@@ -1191,7 +1186,7 @@ export default function CartPage() {
                       {/* Shipping selection */}
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                          <MapPin className="h-4 w-4" /> Shipping Area
+                          <MapPin className="h-4 w-4" /> Shipping Area (ডেলিভারি এলাকা)
                         </Label>
 
                         <RadioGroup
@@ -1212,12 +1207,12 @@ export default function CartPage() {
                               <div className="flex items-center gap-2 pointer-events-none">
                                 <RadioGroupItem value="inside" id="inside" />
                                 <Label htmlFor="inside" className="cursor-pointer font-semibold text-gray-900">
-                                  Inside Dhaka
+                                  Inside Dhaka (ঢাকার ভিতরে)
                                 </Label>
                               </div>
                               <div className="text-sm font-bold text-gray-900">{fmtBDT(SHIPPING_INSIDE_DHAKA)}</div>
                             </div>
-                            <div className="text-xs text-gray-600 mt-1 pl-6">Standard delivery inside Dhaka city.</div>
+                            <div className="text-xs text-gray-600 mt-1 pl-6">Standard delivery inside Dhaka city (ঢাকার ভিতরে ডেলিভারি)।</div>
                           </div>
 
                           {/* Outside */}
@@ -1233,18 +1228,18 @@ export default function CartPage() {
                               <div className="flex items-center gap-2 pointer-events-none">
                                 <RadioGroupItem value="outside" id="outside" />
                                 <Label htmlFor="outside" className="cursor-pointer font-semibold text-gray-900">
-                                  Outside Dhaka
+                                  Outside Dhaka (ঢাকার বাইরে)
                                 </Label>
                               </div>
                               <div className="text-sm font-bold text-gray-900">{fmtBDT(SHIPPING_OUTSIDE_DHAKA)}</div>
                             </div>
-                            <div className="text-xs text-gray-600 mt-1 pl-6">Courier delivery to other districts.</div>
+                            <div className="text-xs text-gray-600 mt-1 pl-6">Courier delivery to other districts (অন্য জেলায় কুরিয়ার ডেলিভারি)।</div>
                           </div>
                         </RadioGroup>
 
                         <div className="text-xs text-gray-500 flex items-center gap-2">
                           <Sparkles className="h-3.5 w-3.5" />
-                          Estimated delivery: <span className="font-semibold text-gray-700">{etaRange}</span>
+                          Estimated delivery (আনুমানিক ডেলিভারি): <span className="font-semibold text-gray-700">{etaRange}</span>
                         </div>
                       </div>
 
@@ -1253,28 +1248,28 @@ export default function CartPage() {
                       {/* Totals */}
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between text-gray-700">
-                          <span>Subtotal</span>
+                          <span>Subtotal (সাবটোটাল)</span>
                           <span className="font-semibold">{fmtBDT(subtotal)}</span>
                         </div>
 
                         {/* Voucher */}
                         <div className="rounded-xl border bg-white p-3 space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className="font-semibold text-gray-900">Voucher</span>
+                            <span className="font-semibold text-gray-900">Voucher (ভাউচার)</span>
                             {voucher && voucherDiscount > 0 && (
-                              <span className="text-xs font-bold text-green-700">Applied</span>
+                              <span className="text-xs font-bold text-green-700">Applied (প্রযোজ্য)</span>
                             )}
                           </div>
                           <div className="flex items-center gap-2">
                             <Input
                               value={voucherInput}
                               onChange={(e) => setVoucherInput(e.target.value)}
-                              placeholder="Enter voucher code"
+                              placeholder="Enter voucher code (ভাউচার কোড দিন)"
                               className="bg-white"
                             />
                             {voucher ? (
                               <Button type="button" variant="outline" className="bg-white" onClick={clearVoucher}>
-                                Remove
+                                Remove (সরান)
                               </Button>
                             ) : (
                               <Button
@@ -1284,47 +1279,49 @@ export default function CartPage() {
                                 onClick={() => void applyVoucher()}
                                 disabled={voucherLoading || !voucherInput.trim()}
                               >
-                                {voucherLoading ? '...' : 'Apply'}
+                                {voucherLoading ? '...' : 'Apply (প্রয়োগ করুন)'}
                               </Button>
                             )}
                           </div>
                           {voucherMsg && (
                             <div className={`text-xs ${voucher ? 'text-green-700' : 'text-red-600'}`}>{voucherMsg}</div>
                           )}
-                          <div className="text-[11px] text-gray-500">Discount applies to product subtotal (shipping excluded).</div>
+                          <div className="text-[11px] text-gray-500">Discount applies to product subtotal (shipping excluded) (শুধু পণ্যের মূল্যে ছাড়)।</div>
                         </div>
 
                         {voucherDiscount > 0 && (
                           <div className="flex justify-between text-gray-700">
-                            <span className="font-semibold text-green-700">Voucher Discount {voucher?.code ? `(${voucher.code})` : ''}</span>
+                            <span className="font-semibold text-green-700">Voucher Discount (ভাউচার ছাড়) {voucher?.code ? `(${voucher.code})` : ''}</span>
                             <span className="font-semibold text-green-700">- {fmtBDT(voucherDiscount)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-gray-700">
-                          <span>Shipping</span>
+                          <span>Shipping (শিপিং)</span>
                           <span className="font-semibold">{fmtBDT(shippingCost)}</span>
                         </div>
                         <Separator className="my-2" />
                         <div className="flex justify-between text-lg font-extrabold text-blue-900">
-                          <span>Total</span>
+                          <span>Total (মোট)</span>
                           <span>{fmtBDT(total)}</span>
                         </div>
                         <div className="text-xs text-gray-500 flex items-center gap-2">
                           <Truck className="h-3.5 w-3.5" />
-                          {paymentMethod === 'cod' ? 'Cash on Delivery available' : 'bKash payment selected'}
+                          {paymentMethod === 'cod'
+                            ? 'Cash on Delivery available (ক্যাশ অন ডেলিভারি উপলব্ধ)'
+                            : 'bKash payment selected (বিকাশ পেমেন্ট নির্বাচন করা হয়েছে)'}
                         </div>
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-3 pt-2">
                         <Button variant="outline" className="h-11" onClick={() => setCheckoutStep(1)}>
-                          Back to Details
+                          Back to Details (বিস্তারিত এ ফিরে যান)
                         </Button>
                         <Button
                           className="flex-1 bg-blue-900 hover:bg-blue-800 h-11"
                           onClick={handleContinueToConfirm}
                           disabled={!trxOk || missingSize}
                         >
-                          Continue to Review
+                          Continue to Review (পর্যালোচনায় যান)
                         </Button>
                       </div>
                     </CardContent>
@@ -1339,28 +1336,28 @@ export default function CartPage() {
             {checkoutStep === 3 && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
                 <div className="lg:col-span-2 order-1">
-                  <Card className="shadow-md border-blue-100 overflow-hidden">
+                  <Card className="shadow-sm border-gray-200 overflow-hidden">
                     <CardHeader className="bg-white border-b">
                       <CardTitle className="text-base text-gray-900">
                         Step 3: Review & Confirm (ধাপ ৩: পর্যালোচনা ও নিশ্চিতকরণ)
                       </CardTitle>
-                      <div className="text-xs text-gray-500">Review everything before placing your order.</div>
-                      <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
+                      <div className="text-xs text-gray-500">Review everything before placing your order (অর্ডার দেওয়ার আগে সবকিছু দেখুন)।</div>
+                      <div className="text-[11px] text-emerald-700 font-semibold">Secure checkout (নিরাপদ চেকআউট)</div>
                     </CardHeader>
 
                     <CardContent className="p-4 space-y-4">
                       <div className="rounded-xl border bg-gray-50/60 p-4">
                         <div className="flex items-center justify-between mb-2">
-                          <div className="text-sm font-semibold text-gray-800">Contact & Address</div>
+                          <div className="text-sm font-semibold text-gray-800">Contact & Address (যোগাযোগ ও ঠিকানা)</div>
                           <Button variant="outline" size="sm" className="h-8" onClick={() => setCheckoutStep(1)}>
-                            Edit
+                            Edit (সম্পাদনা)
                           </Button>
                         </div>
                         <div className="text-sm text-gray-700 space-y-1">
-                          <div><span className="font-semibold">Name:</span> {user ? profile?.full_name || '—' : guestFullName}</div>
-                          <div><span className="font-semibold">Phone:</span> {user ? profile?.phone || '—' : normalizePhone(guestPhone)}</div>
+                          <div><span className="font-semibold">Name (নাম):</span> {user ? profile?.full_name || '—' : guestFullName}</div>
+                          <div><span className="font-semibold">Phone (ফোন):</span> {user ? profile?.phone || '—' : normalizePhone(guestPhone)}</div>
                           <div className="whitespace-pre-wrap">
-                            <span className="font-semibold">Address:</span>{' '}
+                            <span className="font-semibold">Address (ঠিকানা):</span>{' '}
                             {user ? (profile as any)?.address || '—' : guestAddress}
                           </div>
                         </div>
@@ -1368,62 +1365,62 @@ export default function CartPage() {
 
                       <div className="rounded-xl border bg-gray-50/60 p-4">
                         <div className="flex items-center justify-between mb-2">
-                          <div className="text-sm font-semibold text-gray-800">Payment & Shipping</div>
+                          <div className="text-sm font-semibold text-gray-800">Payment & Shipping (পেমেন্ট ও শিপিং)</div>
                           <Button variant="outline" size="sm" className="h-8" onClick={() => setCheckoutStep(2)}>
-                            Edit
+                            Edit (সম্পাদনা)
                           </Button>
                         </div>
                         <div className="text-sm text-gray-700 space-y-1">
-                          <div><span className="font-semibold">Payment:</span> {paymentMethod === 'cod' ? 'Cash on Delivery' : 'bKash'}</div>
+                          <div><span className="font-semibold">Payment (পেমেন্ট):</span> {paymentMethod === 'cod' ? 'Cash on Delivery (ক্যাশ অন ডেলিভারি)' : 'bKash (বিকাশ)'}</div>
                           {paymentMethod === 'bkash' && (
-                            <div><span className="font-semibold">TRX ID:</span> {trxId || '—'}</div>
+                            <div><span className="font-semibold">TRX ID (ট্রান্সেকশন আইডি):</span> {trxId || '—'}</div>
                           )}
-                          <div><span className="font-semibold">Shipping:</span> {deliveryLocation === 'inside' ? 'Inside Dhaka' : 'Outside Dhaka'}</div>
-                          <div><span className="font-semibold">ETA:</span> {etaRange}</div>
+                          <div><span className="font-semibold">Shipping (শিপিং):</span> {deliveryLocation === 'inside' ? 'Inside Dhaka (ঢাকার ভিতরে)' : 'Outside Dhaka (ঢাকার বাইরে)'}</div>
+                          <div><span className="font-semibold">ETA (ডেলিভারি সময়):</span> {etaRange}</div>
                         </div>
                       </div>
 
                       <div className="rounded-xl border bg-white p-4 space-y-2 text-sm">
                         <div className="flex justify-between text-gray-700">
-                          <span>Subtotal</span>
+                          <span>Subtotal (সাবটোটাল)</span>
                           <span className="font-semibold">{fmtBDT(subtotal)}</span>
                         </div>
                         {voucherDiscount > 0 && (
                           <div className="flex justify-between text-gray-700">
-                            <span className="font-semibold text-green-700">Voucher Discount {voucher?.code ? `(${voucher.code})` : ''}</span>
+                            <span className="font-semibold text-green-700">Voucher Discount (ভাউচার ছাড়) {voucher?.code ? `(${voucher.code})` : ''}</span>
                             <span className="font-semibold text-green-700">- {fmtBDT(voucherDiscount)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-gray-700">
-                          <span>Shipping</span>
+                          <span>Shipping (শিপিং)</span>
                           <span className="font-semibold">{fmtBDT(shippingCost)}</span>
                         </div>
                         <Separator className="my-2" />
                         <div className="flex justify-between text-lg font-extrabold text-blue-900">
-                          <span>Total</span>
+                          <span>Total (মোট)</span>
                           <span>{fmtBDT(total)}</span>
                         </div>
                       </div>
 
                       {!user && (
                         <Alert className="py-2">
-                          <AlertTitle>Guest checkout enabled</AlertTitle>
-                          <AlertDescription className="text-xs">
-                            You can order without logging in. If you sign in, your saved profile will be used automatically.
-                          </AlertDescription>
-                        </Alert>
-                      )}
+                        <AlertTitle>Guest checkout enabled (গেস্ট চেকআউট সক্রিয়)</AlertTitle>
+                        <AlertDescription className="text-xs">
+                          You can order without logging in. If you sign in, your saved profile will be used automatically (লগইন ছাড়াই অর্ডার করা যাবে)।
+                        </AlertDescription>
+                      </Alert>
+                    )}
 
                       <Button
                         className="w-full bg-blue-900 hover:bg-blue-800 h-11 text-base shadow-sm"
                         onClick={handleConfirmOrder}
                         disabled={!canCheckout}
                       >
-                        {isPlacingOrder ? 'Processing...' : 'Confirm Order'}
+                        {isPlacingOrder ? 'Processing... (প্রসেস হচ্ছে)' : 'Confirm Order (অর্ডার নিশ্চিত করুন)'}
                       </Button>
 
                       <div className="text-center text-xs text-gray-500">
-                        By confirming, you agree to be contacted to verify your order.
+                        By confirming, you agree to be contacted to verify your order (অর্ডার যাচাইয়ের জন্য যোগাযোগ করা হবে)।
                       </div>
                     </CardContent>
                   </Card>
