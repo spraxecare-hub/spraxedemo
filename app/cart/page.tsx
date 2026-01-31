@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useCart } from '@/lib/cart/cart-context';
@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { DEFAULT_SIZE_OPTIONS, parseSizeChart } from '@/lib/utils/size-chart';
 import {
   Trash2,
   Phone,
@@ -43,12 +44,11 @@ const BKASH_NUMBER = '01XXXXXXXXX';
 
 // ✅ Put your bKash logo here: /public/payments/bkash.svg
 const BKASH_LOGO_PATH = '/payments/bkash.svg';
-const SIZE_OPTIONS = ['S', 'M', 'L', 'XL'];
 
 const isClothingCategory = (name?: string | null, slug?: string | null) => {
   const hay = `${name || ''} ${slug || ''}`.toLowerCase();
-  const isGender = /(men|mens|women|womens|woman|female|male)/i.test(hay);
-  const isClothing = /(cloth|clothing|apparel|fashion|wear)/i.test(hay);
+  const isGender = /\b(men|mens|man|mans|women|womens|woman|female|male)\b/i.test(hay);
+  const isClothing = /\b(cloth|clothing|apparel|fashion|wear)\b/i.test(hay);
   return isGender && isClothing;
 };
 
@@ -169,6 +169,7 @@ export default function CartPage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth();
   const { items, removeItem, updateQuantity, updateItemSize, subtotal, clearCart, loading: cartLoading } = useCart();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
 
   const [deliveryLocation, setDeliveryLocation] = useState<'inside' | 'outside'>('inside');
@@ -197,6 +198,12 @@ export default function CartPage() {
 
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<1 | 2 | 3>(1);
+
+  useEffect(() => {
+    if (searchParams?.get('checkout') === '1') {
+      setCheckoutStep(1);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (user) refreshProfile();
@@ -617,6 +624,11 @@ export default function CartPage() {
               const lineTotal = price * item.quantity;
               const colorName = String(item.product?.color_name || '').trim();
               const isClothing = isClothingCategory(item.product?.category_name, item.product?.category_slug);
+              const sizeChart = parseSizeChart((item.product as any)?.size_chart);
+              const sizeOptions = Array.from(
+                new Set(sizeChart.length ? sizeChart.map((entry) => entry.size) : DEFAULT_SIZE_OPTIONS)
+              );
+              const selectedSizeDetails = sizeChart.find((entry) => entry.size === item.size);
 
               return (
                 <div key={item.id} className="p-4 sm:p-5">
@@ -662,7 +674,7 @@ export default function CartPage() {
                         <div className="mt-3">
                           <div className="text-xs font-semibold text-gray-700">Size</div>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {SIZE_OPTIONS.map((size) => {
+                            {sizeOptions.map((size) => {
                               const active = item.size === size;
                               return (
                                 <button
@@ -682,6 +694,23 @@ export default function CartPage() {
                           </div>
                           {!item.size && (
                             <div className="mt-1 text-xs text-red-600">Select a size to continue checkout.</div>
+                          )}
+                          {item.size && (
+                            <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-xs text-gray-700">
+                              <div className="font-semibold text-blue-900">Measurements for {item.size}</div>
+                              {selectedSizeDetails?.measurements?.length ? (
+                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                  {selectedSizeDetails.measurements.map((m, idx) => (
+                                    <div key={`${m.label}-${idx}`} className="rounded-lg border border-blue-100 bg-white px-3 py-2">
+                                      <div className="text-[11px] uppercase tracking-wide text-gray-500">{m.label}</div>
+                                      <div className="text-sm font-semibold text-gray-900">{m.value}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="mt-1 text-xs text-gray-600">Measurements will be provided soon.</div>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
@@ -814,13 +843,15 @@ export default function CartPage() {
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 text-sm font-semibold text-blue-900">
                 <ShoppingBag className="h-4 w-4" />
-                Checkout
+                Checkout (চেকআউট)
                 <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-xs text-gray-700 border">
                   <Sparkles className="h-3 w-3 text-blue-900" />
                   Secure checkout
                 </span>
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">Review your order</h1>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
+                Review your order (অর্ডার পর্যালোচনা)
+              </h1>
               <p className="text-sm text-gray-600">
                 Confirm items, shipping, and contact info. Choose <b>Cash on Delivery</b> or <b>bKash</b>.
               </p>
@@ -828,9 +859,9 @@ export default function CartPage() {
 
             {/* Steps */}
             <div className="flex flex-wrap items-center gap-2">
-              <StepPill active={checkoutStep >= 1} title="Details" icon={<User className="h-3.5 w-3.5" />} />
-              <StepPill active={checkoutStep >= 2} title="Payment" icon={<CreditCard className="h-3.5 w-3.5" />} />
-              <StepPill active={checkoutStep >= 3} title="Confirm" icon={<ShieldCheck className="h-3.5 w-3.5" />} />
+              <StepPill active={checkoutStep >= 1} title="Details (বিস্তারিত)" icon={<User className="h-3.5 w-3.5" />} />
+              <StepPill active={checkoutStep >= 2} title="Payment (পেমেন্ট)" icon={<CreditCard className="h-3.5 w-3.5" />} />
+              <StepPill active={checkoutStep >= 3} title="Confirm (নিশ্চিতকরণ)" icon={<ShieldCheck className="h-3.5 w-3.5" />} />
             </div>
           </div>
         </div>
@@ -862,7 +893,9 @@ export default function CartPage() {
                 <div className="lg:col-span-2 order-1">
                   <Card className="shadow-md border-blue-100 overflow-hidden">
                     <CardHeader className="bg-white border-b">
-                      <CardTitle className="text-base text-gray-900">Step 1: Contact & Address</CardTitle>
+                      <CardTitle className="text-base text-gray-900">
+                        Step 1: Contact & Address (ধাপ ১: যোগাযোগ ও ঠিকানা)
+                      </CardTitle>
                       <div className="text-xs text-gray-500">Add your delivery details before payment.</div>
                       <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
                     </CardHeader>
@@ -1067,7 +1100,9 @@ export default function CartPage() {
                 <div className="lg:col-span-2 order-1">
                   <Card className="shadow-md border-blue-100 overflow-hidden">
                     <CardHeader className="bg-white border-b">
-                      <CardTitle className="text-base text-gray-900">Step 2: Payment & Shipping</CardTitle>
+                      <CardTitle className="text-base text-gray-900">
+                        Step 2: Payment & Shipping (ধাপ ২: পেমেন্ট ও শিপিং)
+                      </CardTitle>
                       <div className="text-xs text-gray-500">Choose how you want to pay and where to deliver.</div>
                       <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
                     </CardHeader>
@@ -1306,7 +1341,9 @@ export default function CartPage() {
                 <div className="lg:col-span-2 order-1">
                   <Card className="shadow-md border-blue-100 overflow-hidden">
                     <CardHeader className="bg-white border-b">
-                      <CardTitle className="text-base text-gray-900">Step 3: Review & Confirm</CardTitle>
+                      <CardTitle className="text-base text-gray-900">
+                        Step 3: Review & Confirm (ধাপ ৩: পর্যালোচনা ও নিশ্চিতকরণ)
+                      </CardTitle>
                       <div className="text-xs text-gray-500">Review everything before placing your order.</div>
                       <div className="text-[11px] text-blue-900 font-semibold">Secure checkout</div>
                     </CardHeader>

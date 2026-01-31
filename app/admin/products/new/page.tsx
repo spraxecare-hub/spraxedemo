@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Category } from '@/lib/supabase/types';
+import { sanitizeSizeChart, type SizeOption } from '@/lib/utils/size-chart';
 import {
   UploadCloud,
   X,
@@ -66,6 +67,13 @@ type ImageMode = 'upload' | 'hotlink';
 
 const MAX_IMAGES = 5;
 const BUCKET = 'product-images';
+
+const isClothingCategory = (name?: string | null, slug?: string | null) => {
+  const hay = `${name || ''} ${slug || ''}`.toLowerCase();
+  const isGender = /\b(men|mens|man|mans|women|womens|woman|female|male)\b/i.test(hay);
+  const isClothing = /\b(cloth|clothing|apparel|fashion|wear)\b/i.test(hay);
+  return isGender && isClothing;
+};
 
 function slugify(name: string) {
   return name
@@ -405,6 +413,8 @@ export default function NewProductPage() {
     { label: '', value: '' },
   ]);
 
+  const [sizeChart, setSizeChart] = useState<SizeOption[]>([]);
+
   // Color variants (create multiple products grouped by color)
   const [enableVariants, setEnableVariants] = useState(false);
   const [variants, setVariants] = useState<Array<{ color_name: string; color_hex: string; stock_quantity: string }>>([
@@ -430,6 +440,20 @@ export default function NewProductPage() {
     () => categories.filter((c) => (c as any).parent_id === parentCategoryId),
     [categories, parentCategoryId]
   );
+  const selectedCategory = useMemo(
+    () => categories.find((c) => c.id === formData.category_id) || null,
+    [categories, formData.category_id]
+  );
+  const selectedParent = useMemo(
+    () => categories.find((c) => c.id === (selectedCategory as any)?.parent_id) || null,
+    [categories, selectedCategory]
+  );
+  const isFashionCategory = useMemo(() => {
+    if (!selectedCategory) return false;
+    const name = `${selectedCategory.name} ${selectedParent?.name || ''}`;
+    const slug = `${selectedCategory.slug || ''} ${selectedParent?.slug || ''}`;
+    return isClothingCategory(name, slug);
+  }, [selectedCategory, selectedParent]);
 
   const handleNameChange = (name: string) => {
     setFormData((p) => ({ ...p, name, slug: slugify(name) }));
@@ -563,6 +587,9 @@ export default function NewProductPage() {
         return;
       }
 
+      const cleanedSizeChart = sanitizeSizeChart(sizeChart);
+      const sizeChartPayload = isFashionCategory && cleanedSizeChart.length ? cleanedSizeChart : null;
+
       const payload = {
         name: formData.name,
         slug: formData.slug || slugify(formData.name),
@@ -580,6 +607,7 @@ export default function NewProductPage() {
         is_active: true,
         images: finalImages,
         tags: [],
+        size_chart: sizeChartPayload,
       };
 
       // Clean specs
@@ -964,6 +992,164 @@ export default function NewProductPage() {
                   ) : (
                     <div className="rounded-xl border bg-gray-50 p-4 text-sm text-gray-600">
                       Turn this on if you want customers to choose a color on the product page.
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Size options */}
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-base font-semibold text-gray-900">Size Options & Measurements</div>
+                    <div className="text-sm text-gray-600">
+                      Configure selectable sizes for mens and womens fashion products, with measurements shown on the product page.
+                    </div>
+                  </div>
+
+                  {isFashionCategory ? (
+                    <div className="space-y-3">
+                      {sizeChart.map((entry, idx) => (
+                        <div key={`${entry.size}-${idx}`} className="rounded-xl border bg-white p-4 space-y-3">
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                            <div className="md:col-span-4">
+                              <Label className="text-xs">Size label</Label>
+                              <Input
+                                value={entry.size}
+                                onChange={(e) =>
+                                  setSizeChart((prev) =>
+                                    prev.map((item, i) => (i === idx ? { ...item, size: e.target.value } : item))
+                                  )
+                                }
+                                placeholder="S, M, L, XL..."
+                                className="bg-white"
+                              />
+                            </div>
+                            <div className="md:col-span-8 flex items-center justify-end">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="bg-white"
+                                onClick={() => setSizeChart((prev) => prev.filter((_, i) => i !== idx))}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Remove size
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="text-xs font-semibold text-gray-700">Measurements</div>
+                            {(entry.measurements || []).map((m, mIdx) => (
+                              <div key={`${m.label}-${mIdx}`} className="grid grid-cols-1 md:grid-cols-12 gap-3 rounded-lg border bg-gray-50 p-3">
+                                <div className="md:col-span-5">
+                                  <Label className="text-xs">Label</Label>
+                                  <Input
+                                    value={m.label}
+                                    onChange={(e) =>
+                                      setSizeChart((prev) =>
+                                        prev.map((item, i) =>
+                                          i === idx
+                                            ? {
+                                                ...item,
+                                                measurements: item.measurements.map((row, j) =>
+                                                  j === mIdx ? { ...row, label: e.target.value } : row
+                                                ),
+                                              }
+                                            : item
+                                        )
+                                      )
+                                    }
+                                    placeholder="Chest, Waist, Length..."
+                                    className="bg-white"
+                                  />
+                                </div>
+                                <div className="md:col-span-6">
+                                  <Label className="text-xs">Value</Label>
+                                  <Input
+                                    value={m.value}
+                                    onChange={(e) =>
+                                      setSizeChart((prev) =>
+                                        prev.map((item, i) =>
+                                          i === idx
+                                            ? {
+                                                ...item,
+                                                measurements: item.measurements.map((row, j) =>
+                                                  j === mIdx ? { ...row, value: e.target.value } : row
+                                                ),
+                                              }
+                                            : item
+                                        )
+                                      )
+                                    }
+                                    placeholder="38-40 in, 76 cm..."
+                                    className="bg-white"
+                                  />
+                                </div>
+                                <div className="md:col-span-1 flex items-end justify-end">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="bg-white"
+                                    onClick={() =>
+                                      setSizeChart((prev) =>
+                                        prev.map((item, i) =>
+                                          i === idx
+                                            ? { ...item, measurements: item.measurements.filter((_, j) => j !== mIdx) }
+                                            : item
+                                        )
+                                      )
+                                    }
+                                    title="Remove measurement"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="bg-white gap-2"
+                              onClick={() =>
+                                setSizeChart((prev) =>
+                                  prev.map((item, i) =>
+                                    i === idx
+                                      ? {
+                                          ...item,
+                                          measurements: [...(item.measurements || []), { label: '', value: '' }],
+                                        }
+                                      : item
+                                  )
+                                )
+                              }
+                            >
+                              <Plus className="h-4 w-4" /> Add measurement
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="bg-white gap-2"
+                        onClick={() =>
+                          setSizeChart((prev) => [
+                            ...prev,
+                            { size: '', measurements: [{ label: '', value: '' }] },
+                          ])
+                        }
+                      >
+                        <Plus className="h-4 w-4" /> Add size
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border bg-gray-50 p-4 text-sm text-gray-600">
+                      Select a mens or womens fashion category to add size options and measurements.
                     </div>
                   )}
                 </div>

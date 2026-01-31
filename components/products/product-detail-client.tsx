@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SafeImage } from '@/components/ui/safe-image';
+import { DEFAULT_SIZE_OPTIONS, parseSizeChart } from '@/lib/utils/size-chart';
 
 import {
   ShoppingCart,
@@ -45,11 +46,10 @@ import {
   GitCompare,
 } from 'lucide-react';
 
-const SIZE_OPTIONS = ['S', 'M', 'L', 'XL'];
 const isClothingCategory = (name?: string | null, slug?: string | null) => {
   const hay = `${name || ''} ${slug || ''}`.toLowerCase();
-  const isGender = /(men|mens|women|womens|woman|female|male)/i.test(hay);
-  const isClothing = /(cloth|clothing|apparel|fashion|wear)/i.test(hay);
+  const isGender = /\b(men|mens|man|mans|women|womens|woman|female|male)\b/i.test(hay);
+  const isClothing = /\b(cloth|clothing|apparel|fashion|wear)\b/i.test(hay);
   return isGender && isClothing;
 };
 
@@ -939,7 +939,7 @@ export default function ProductDetailClient({
   initialCategoryChain = [],
   initialRelated = [],
 }: ProductDetailClientProps) {
-  const { addToCart: addToCartContext } = useCart();
+  const { addToCart: addToCartContext, refreshCart } = useCart();
   const { items: compareItems, toggle, isInCompare, maxItems } = useCompare();
   const router = useRouter();
   const { toast } = useToast();
@@ -1013,6 +1013,18 @@ export default function ProductDetailClient({
   const isClothing = useMemo(
     () => categoryChain.some((cat) => isClothingCategory(cat?.name, cat?.slug)),
     [categoryChain]
+  );
+
+  const sizeChart = useMemo(() => parseSizeChart((product as any)?.size_chart), [product]);
+  const sizeOptions = useMemo(() => {
+    const fromChart = sizeChart.map((entry) => entry.size).filter(Boolean);
+    const fallback = fromChart.length ? fromChart : DEFAULT_SIZE_OPTIONS;
+    return Array.from(new Set(fallback));
+  }, [sizeChart]);
+
+  const selectedSizeDetails = useMemo(
+    () => sizeChart.find((entry) => entry.size === selectedSize),
+    [sizeChart, selectedSize]
   );
 
   useEffect(() => {
@@ -1157,7 +1169,7 @@ export default function ProductDetailClient({
       const { data, error } = await supabase
         .from('products')
         .select(
-          'id,category_id,name,slug,description,sku,images,price,base_price,retail_price,stock_quantity,min_order_quantity,unit,supplier_name,tags,is_featured,total_sales,approval_status,is_active,color_group_id,color_name,color_hex'
+          'id,category_id,name,slug,description,sku,images,price,base_price,retail_price,stock_quantity,min_order_quantity,unit,supplier_name,tags,is_featured,total_sales,approval_status,is_active,size_chart,color_group_id,color_name,color_hex'
         )
         .eq('is_active', true)
         .eq('color_group_id', colorGroupId)
@@ -1228,7 +1240,7 @@ export default function ProductDetailClient({
 
     const { data } = await supabase
       .from('products')
-      .select('id,name,slug,category_id,price,base_price,retail_price,images,stock_quantity,is_featured,total_sales,color_group_id,color_name,color_hex')
+      .select('id,name,slug,category_id,price,base_price,retail_price,images,stock_quantity,is_featured,total_sales,size_chart,color_group_id,color_name,color_hex')
       .eq('is_active', true)
       .eq('category_id', categoryId)
       .neq('id', p.id)
@@ -1243,7 +1255,7 @@ export default function ProductDetailClient({
   const fetchAlsoLike = async (p: ProductEx) => {
     const { data } = await supabase
       .from('products')
-      .select('id,name,slug,category_id,price,base_price,retail_price,images,stock_quantity,is_featured,total_sales,color_group_id,color_name,color_hex')
+      .select('id,name,slug,category_id,price,base_price,retail_price,images,stock_quantity,is_featured,total_sales,size_chart,color_group_id,color_name,color_hex')
       .eq('is_active', true)
       .neq('id', p.id)
       .order('is_featured', { ascending: false })
@@ -1270,7 +1282,7 @@ export default function ProductDetailClient({
     const baseQuery = supabase
       .from('products')
       .select(
-        'id,name,slug,category_id,price,base_price,retail_price,images,stock_quantity,is_featured,total_sales,color_group_id,color_name,color_hex'
+        'id,name,slug,category_id,price,base_price,retail_price,images,stock_quantity,is_featured,total_sales,size_chart,color_group_id,color_name,color_hex'
       )
       .eq('is_active', true)
       .limit(20);
@@ -1305,7 +1317,7 @@ export default function ProductDetailClient({
       const { data: productData, error } = await supabase
         .from('products')
         .select(
-          'id,category_id,name,slug,description,sku,images,price,base_price,retail_price,stock_quantity,unit,supplier_name,tags,is_featured,total_sales,approval_status,is_active,color_group_id,color_name,color_hex'
+          'id,category_id,name,slug,description,sku,images,price,base_price,retail_price,stock_quantity,unit,supplier_name,tags,is_featured,total_sales,approval_status,is_active,size_chart,color_group_id,color_name,color_hex'
         )
         .eq('slug', params.slug)
         .eq('is_active', true)
@@ -1380,7 +1392,10 @@ export default function ProductDetailClient({
 
   const handleBuyNow = async () => {
     const ok = await handleAddToCart();
-    if (ok) router.push('/cart');
+    if (ok) {
+      await refreshCart();
+      router.push('/cart?checkout=1');
+    }
   };
 
   const handleContactSeller = () => {
@@ -1985,7 +2000,7 @@ export default function ProductDetailClient({
                     <div className="mt-4">
                       <Label className="text-sm text-gray-700">Size</Label>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {SIZE_OPTIONS.map((size) => {
+                        {sizeOptions.map((size) => {
                           const active = selectedSize === size;
                           return (
                             <button
@@ -2003,6 +2018,23 @@ export default function ProductDetailClient({
                         })}
                       </div>
                       {!selectedSize && <div className="mt-2 text-xs text-red-600">Please select a size to continue.</div>}
+                      {selectedSize && (
+                        <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-xs text-gray-700">
+                          <div className="font-semibold text-blue-900">Measurements for {selectedSize}</div>
+                          {selectedSizeDetails?.measurements?.length ? (
+                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                              {selectedSizeDetails.measurements.map((m, idx) => (
+                                <div key={`${m.label}-${idx}`} className="rounded-lg border border-blue-100 bg-white px-3 py-2">
+                                  <div className="text-[11px] uppercase tracking-wide text-gray-500">{m.label}</div>
+                                  <div className="text-sm font-semibold text-gray-900">{m.value}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-xs text-gray-600">Measurements will be provided soon.</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 

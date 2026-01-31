@@ -494,7 +494,7 @@ export default function HomePageClient({
     try {
       await addToCart(productId, 1);
       toast({ title: 'Ready to checkout', description: `${productName} added to your cart` });
-      router.push('/cart');
+      router.push('/cart?checkout=1');
     } catch {
       toast({ title: 'Error', description: 'Failed to add to cart', variant: 'destructive' });
     }
