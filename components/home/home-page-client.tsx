@@ -541,11 +541,14 @@ export default function HomePageClient({
     carouselApi.on('select', onSelect);
   }, [carouselApi]);
 
-  // Auto-slide hero (disabled for performance)
+  // Auto-slide hero
   useEffect(() => {
-    // Intentionally disabled to keep scrolling/interaction smooth on low-end devices.
-    // If you want it back, reintroduce a setInterval(carouselApi.scrollNext, ...).
-  }, [carouselApi]);
+    if (!carouselApi || heroFeaturedImages.length <= 1) return;
+    const id = window.setInterval(() => {
+      carouselApi.scrollNext();
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, [carouselApi, heroFeaturedImages.length]);
 
   // Update slide index (info carousel)
   useEffect(() => {
