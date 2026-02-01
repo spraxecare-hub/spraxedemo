@@ -29,6 +29,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const SHIPPING_INSIDE_DHAKA = 60;
 const SHIPPING_OUTSIDE_DHAKA = 120;
+const BKASH_NUMBER = '01XXXXXXXXX';
 
 const isClothingCategory = (name?: string | null, slug?: string | null) => {
   const hay = `${name || ''} ${slug || ''}`.toLowerCase();
@@ -67,7 +68,8 @@ export default function CartPage() {
   // Shipping speed selection removed (always standard)
   const shippingSpeed: 'standard' = 'standard';
 
-  const paymentMethod: 'cod' = 'cod';
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'bkash'>('cod');
+  const [trxId, setTrxId] = useState('');
 
   // ✅ Guest checkout (saved locally for next time)
   const [guestFullName, setGuestFullName] = useState('');
@@ -117,7 +119,7 @@ export default function CartPage() {
   );
 
   const canCheckout =
-    cartCount > 0 && !isPlacingOrder && !missingSize && (user ? isProfileComplete : isGuestComplete);
+    cartCount > 0 && !isPlacingOrder && !missingSize && trxOk && (user ? isProfileComplete : isGuestComplete);
   const infoReady = user ? isProfileComplete : isGuestComplete;
 
   const handleConfirmOrder = async () => {
@@ -125,6 +127,15 @@ export default function CartPage() {
       toast({
         title: 'Size required',
         description: 'Please select a size for each clothing item before placing the order.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (paymentMethod === 'bkash' && !trxId.trim()) {
+      toast({
+        title: 'TRX ID required',
+        description: 'Please enter your bKash transaction (TRX) ID to confirm the order.',
         variant: 'destructive',
       });
       return;
@@ -475,7 +486,7 @@ export default function CartPage() {
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Header />
-      <div className="mx-auto w-full max-w-[1000px] px-4 md:px-6 py-8 flex-1">
+      <div className="mx-auto w-full max-w-[1200px] px-4 md:px-6 py-10 flex-1">
         {items.length === 0 ? (
           <Card className="shadow-sm">
             <CardContent className="p-10 text-center space-y-4">
@@ -495,7 +506,7 @@ export default function CartPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-8">
             <Card className="shadow-sm border-gray-200 overflow-hidden">
               <CardHeader className="bg-white border-b">
                 <CardTitle className="text-xl font-semibold text-gray-900">অর্ডার করতে নিচের তথ্যগুলি দিন</CardTitle>
@@ -631,6 +642,65 @@ export default function CartPage() {
                   </RadioGroup>
                 </div>
 
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold text-gray-900">পেমেন্ট পদ্ধতি</Label>
+                  <RadioGroup
+                    value={paymentMethod}
+                    onValueChange={(val: 'cod' | 'bkash') => setPaymentMethod(val)}
+                    className="grid gap-3"
+                  >
+                    <div
+                      onClick={() => setPaymentMethod('cod')}
+                      className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer ${
+                        paymentMethod === 'cod' ? 'border-emerald-500 bg-emerald-50' : 'bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <RadioGroupItem value="cod" id="cod" />
+                        <Label htmlFor="cod" className="cursor-pointer font-semibold text-gray-900">
+                          ক্যাশ অন ডেলিভারি (COD)
+                        </Label>
+                      </div>
+                      <span className="text-sm text-gray-600">পণ্য হাতে পেয়ে পরিশোধ</span>
+                    </div>
+
+                    <div
+                      onClick={() => setPaymentMethod('bkash')}
+                      className={`flex flex-col gap-3 rounded-xl border p-4 cursor-pointer ${
+                        paymentMethod === 'bkash' ? 'border-emerald-500 bg-emerald-50' : 'bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <RadioGroupItem value="bkash" id="bkash" />
+                          <Label htmlFor="bkash" className="cursor-pointer font-semibold text-gray-900">
+                            বিকাশ
+                          </Label>
+                        </div>
+                        <span className="text-sm text-gray-600">আগে পেমেন্ট করুন</span>
+                      </div>
+                      {paymentMethod === 'bkash' && (
+                        <div className="space-y-3 rounded-lg border border-emerald-100 bg-white p-3">
+                          <div className="text-sm font-semibold text-gray-900">
+                            এই নম্বরে টাকা পাঠান: <span className="font-bold">{BKASH_NUMBER}</span>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold text-gray-900">TRX ID</Label>
+                            <Input
+                              value={trxId}
+                              onChange={(e) => setTrxId(e.target.value)}
+                              placeholder="Transaction ID দিন"
+                            />
+                            {!trxOk && (
+                              <div className="text-xs text-red-600">TRX ID দিন যাতে আপনার পেমেন্ট যাচাই করা যায়।</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </RadioGroup>
+                </div>
+
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-gray-600">
                     <span>Subtotal</span>
@@ -649,6 +719,9 @@ export default function CartPage() {
 
                 {!infoReady && (
                   <div className="text-xs text-red-600">Please fill in name, phone, and address to continue.</div>
+                )}
+                {paymentMethod === 'bkash' && !trxOk && (
+                  <div className="text-xs text-red-600">Please provide the bKash TRX ID to continue.</div>
                 )}
 
                 <Button
