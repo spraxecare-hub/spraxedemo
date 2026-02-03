@@ -118,8 +118,9 @@ export default function CartPage() {
       isClothingCategory(item.product?.category_name, item.product?.category_slug) && !String(item.size || '').trim()
   );
 
+  const isTrxOk = paymentMethod !== 'bkash' || !!trxId.trim();
   const canCheckout =
-    cartCount > 0 && !isPlacingOrder && !missingSize && trxOk && (user ? isProfileComplete : isGuestComplete);
+    cartCount > 0 && !isPlacingOrder && !missingSize && isTrxOk && (user ? isProfileComplete : isGuestComplete);
   const infoReady = user ? isProfileComplete : isGuestComplete;
 
   const handleConfirmOrder = async () => {
@@ -701,7 +702,7 @@ export default function CartPage() {
                               onChange={(e) => setTrxId(e.target.value)}
                               placeholder="Transaction ID দিন"
                             />
-                            {!trxOk && (
+                            {!isTrxOk && (
                               <div className="text-xs text-red-600">TRX ID দিন যাতে আপনার পেমেন্ট যাচাই করা যায়।</div>
                             )}
                           </div>
@@ -730,7 +731,7 @@ export default function CartPage() {
                 {!infoReady && (
                   <div className="text-xs text-red-600">Please fill in name, phone, and address to continue.</div>
                 )}
-                {paymentMethod === 'bkash' && !trxOk && (
+                {paymentMethod === 'bkash' && !isTrxOk && (
                   <div className="text-xs text-red-600">Please provide the bKash TRX ID to continue.</div>
                 )}
 
