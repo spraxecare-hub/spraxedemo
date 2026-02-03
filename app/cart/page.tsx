@@ -651,17 +651,24 @@ export default function CartPage() {
                   >
                     <div
                       onClick={() => setPaymentMethod('cod')}
-                      className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer ${
+                      className={`flex flex-col gap-2 rounded-xl border p-4 cursor-pointer ${
                         paymentMethod === 'cod' ? 'border-emerald-500 bg-emerald-50' : 'bg-white'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <RadioGroupItem value="cod" id="cod" />
-                        <Label htmlFor="cod" className="cursor-pointer font-semibold text-gray-900">
-                          ক্যাশ অন ডেলিভারি (COD)
-                        </Label>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <RadioGroupItem value="cod" id="cod" />
+                          <Label htmlFor="cod" className="cursor-pointer font-semibold text-gray-900">
+                            ক্যাশ অন ডেলিভারি (COD)
+                          </Label>
+                        </div>
+                        <span className="text-sm text-gray-600">পণ্য হাতে পেয়ে পরিশোধ</span>
                       </div>
-                      <span className="text-sm text-gray-600">পণ্য হাতে পেয়ে পরিশোধ</span>
+                      {paymentMethod === 'cod' && (
+                        <div className="text-sm text-gray-700">
+                          ডেলিভারি ম্যানের কাছে পণ্য দেখে টাকা প্রদান করুন।
+                        </div>
+                      )}
                     </div>
 
                     <div
@@ -683,6 +690,9 @@ export default function CartPage() {
                         <div className="space-y-3 rounded-lg border border-emerald-100 bg-white p-3">
                           <div className="text-sm font-semibold text-gray-900">
                             এই নম্বরে টাকা পাঠান: <span className="font-bold">{BKASH_NUMBER}</span>
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            টাকা পাঠানোর পর আপনার বিকাশ TRX ID লিখুন।
                           </div>
                           <div className="space-y-2">
                             <Label className="text-sm font-semibold text-gray-900">TRX ID</Label>
