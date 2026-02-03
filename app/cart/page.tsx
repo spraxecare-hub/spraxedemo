@@ -202,7 +202,6 @@ export default function CartPage() {
         deliveryLocation,
         shippingSpeed,
         paymentMethod,
-        trxId: paymentMethod === 'bkash' ? trxId.trim() : null,
         guest: user
           ? null
           : {
