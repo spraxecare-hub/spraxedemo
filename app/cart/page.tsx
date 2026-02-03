@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useCart } from '@/lib/cart/cart-context';
@@ -11,6 +11,7 @@ import { Footer } from '@/components/layout/footer';
 import { SafeImage } from '@/components/ui/safe-image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -19,31 +20,16 @@ import { useToast } from '@/hooks/use-toast';
 import { DEFAULT_SIZE_OPTIONS, parseSizeChart } from '@/lib/utils/size-chart';
 import {
   Trash2,
-  Phone,
-  MapPin,
-  Truck,
-  Home,
   AlertCircle,
-  ExternalLink,
   ShoppingBag,
-  ShieldCheck,
-  CreditCard,
   Minus,
   Plus,
-  User,
-  Sparkles,
-  Banknote,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const SHIPPING_INSIDE_DHAKA = 60;
 const SHIPPING_OUTSIDE_DHAKA = 120;
-
-// ✅ Change this to your real bKash merchant/personal number
 const BKASH_NUMBER = '01XXXXXXXXX';
-
-// ✅ Put your bKash logo here: /public/payments/bkash.svg
-const BKASH_LOGO_PATH = '/payments/bkash.svg';
 
 const isClothingCategory = (name?: string | null, slug?: string | null) => {
   const hay = `${name || ''} ${slug || ''}`.toLowerCase();
@@ -52,44 +38,7 @@ const isClothingCategory = (name?: string | null, slug?: string | null) => {
   return isGender && isClothing;
 };
 
-type VoucherRow = {
-  code: string;
-  discount_type: string | null;
-  discount_value: number | null;
-  min_purchase: number | null;
-  max_uses: number | null;
-  current_uses: number | null;
-  valid_from: string | null;
-  valid_until: string | null;
-  is_active: boolean | null;
-};
-
 const fmtBDT = (n: number) => `৳${(n || 0).toLocaleString('en-BD')}`;
-
-function addDays(from: Date, days: number) {
-  const d = new Date(from);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function formatEtaRange(minDays: number, maxDays: number) {
-  const now = new Date();
-  const a = addDays(now, Math.max(0, minDays));
-  const b = addDays(now, Math.max(0, maxDays));
-  const fmt = (x: Date) =>
-    x.toLocaleDateString('en-BD', {
-      month: 'short',
-      day: '2-digit',
-    });
-  if (minDays === maxDays) return `${fmt(a)}`;
-  return `${fmt(a)} – ${fmt(b)}`;
-}
-
-function getDeliveryEstimate(location: 'inside' | 'outside') {
-  // Standard delivery estimates (shipping speed selection removed)
-  if (location === 'inside') return { minDays: 1, maxDays: 2, label: '1–2 days delivery (Dhaka)' };
-  return { minDays: 3, maxDays: 5, label: '3–5 days delivery (Outside Dhaka)' };
-}
 
 function normalizePhone(raw: string) {
   const digits = (raw || '').replace(/\D+/g, '');
@@ -106,70 +55,12 @@ function SkeletonLine({ className = '' }: { className?: string }) {
   return <div className={`h-4 rounded bg-gray-100 animate-pulse ${className}`} />;
 }
 
-function StepPill({
-  active,
-  title,
-  icon,
-}: {
-  active?: boolean;
-  title: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-        active ? 'border-blue-200 bg-blue-50 text-blue-900' : 'border-gray-200 bg-white text-gray-600'
-      }`}
-    >
-      <span className={`${active ? 'text-blue-900' : 'text-gray-500'}`}>{icon}</span>
-      {title}
-    </div>
-  );
-}
-
-function PaymentOption({
-  active,
-  title,
-  subtitle,
-  left,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  title: string;
-  subtitle: string;
-  left: React.ReactNode;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className={`rounded-xl border p-3 cursor-pointer transition-all ${
-        active ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600 shadow-sm' : 'bg-white hover:bg-gray-50'
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 pointer-events-none">
-          {children}
-          <div className="flex items-center gap-2">
-            {left}
-            <div>
-              <div className="font-semibold text-gray-900 leading-4">{title}</div>
-              <div className="text-xs text-gray-600">{subtitle}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+const EMPTY_ADDRESS_PLACEHOLDER = 'N/A';
 
 export default function CartPage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth();
   const { items, removeItem, updateQuantity, updateItemSize, subtotal, clearCart, loading: cartLoading } = useCart();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
 
   const [deliveryLocation, setDeliveryLocation] = useState<'inside' | 'outside'>('inside');
@@ -177,33 +68,16 @@ export default function CartPage() {
   // Shipping speed selection removed (always standard)
   const shippingSpeed: 'standard' = 'standard';
 
-  // ✅ Payment
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'bkash'>('cod');
   const [trxId, setTrxId] = useState('');
 
   // ✅ Guest checkout (saved locally for next time)
   const [guestFullName, setGuestFullName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
-  const [guestDivision, setGuestDivision] = useState('');
-  const [guestDistrict, setGuestDistrict] = useState('');
-  const [guestCity, setGuestCity] = useState('');
-  const [guestRoad, setGuestRoad] = useState('');
-  const [guestZipCode, setGuestZipCode] = useState('');
-
-  // Voucher
-  const [voucherInput, setVoucherInput] = useState('');
-  const [voucher, setVoucher] = useState<VoucherRow | null>(null);
-  const [voucherMsg, setVoucherMsg] = useState('');
-  const [voucherLoading, setVoucherLoading] = useState(false);
+  const [guestAddress, setGuestAddress] = useState('');
+  const [orderNote, setOrderNote] = useState('');
 
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState<1 | 2 | 3>(1);
-
-  useEffect(() => {
-    if (searchParams?.get('checkout') === '1') {
-      setCheckoutStep(1);
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     if (user) refreshProfile();
@@ -218,55 +92,15 @@ export default function CartPage() {
       const saved = JSON.parse(raw || '{}');
       setGuestFullName(saved.full_name || '');
       setGuestPhone(saved.phone || '');
-      setGuestDivision(saved.division || '');
-      setGuestDistrict(saved.district || '');
-      setGuestCity(saved.city || '');
-      setGuestRoad(saved.road || '');
-      setGuestZipCode(saved.zip_code || '');
+      setGuestAddress(saved.address || '');
     } catch {
       // ignore
     }
   }, [user]);
 
-  // Restore voucher input (does not auto-apply)
-  useEffect(() => {
-    try {
-      const c = localStorage.getItem('voucher_code');
-      if (c) setVoucherInput(c);
-    } catch {}
-  }, []);
-
   const baseShipping = deliveryLocation === 'inside' ? SHIPPING_INSIDE_DHAKA : SHIPPING_OUTSIDE_DHAKA;
   const shippingCost = baseShipping;
-
-  const eta = getDeliveryEstimate(deliveryLocation);
-  const etaRange = formatEtaRange(eta.minDays, eta.maxDays);
-
-  const voucherDiscount = (() => {
-    if (!voucher) return 0;
-    if (!voucher.is_active) return 0;
-    const now = new Date();
-    if (voucher.valid_from && now < new Date(voucher.valid_from)) return 0;
-    if (voucher.valid_until && now > new Date(voucher.valid_until)) return 0;
-    const min = Number(voucher.min_purchase || 0);
-    if (min > 0 && subtotal < min) return 0;
-    const maxUses = Number(voucher.max_uses || 0);
-    const used = Number(voucher.current_uses || 0);
-    if (maxUses > 0 && used >= maxUses) return 0;
-
-    const t = String(voucher.discount_type || '').toLowerCase();
-    const val = Number(voucher.discount_value || 0);
-    if (val <= 0) return 0;
-
-    let d = 0;
-    if (t === 'percentage' || t === 'percent') d = (subtotal * val) / 100;
-    else d = val;
-
-    d = Math.max(0, Math.min(subtotal, d));
-    return Math.round(d);
-  })();
-
-  const total = Math.max(0, subtotal - voucherDiscount) + shippingCost;
+  const total = Math.max(0, subtotal) + shippingCost;
 
   const hasPhone = !!profile?.phone;
   // @ts-ignore
@@ -275,10 +109,8 @@ export default function CartPage() {
 
   const guestNameOk = !!guestFullName.trim();
   const guestPhoneOk = isValidBDPhone(guestPhone);
-  const guestZipOk = !guestZipCode.trim() || /^\d{4}$/.test(guestZipCode.trim());
-  const guestAddressOk = !!guestDivision.trim() && !!guestDistrict.trim() && !!guestCity.trim() && !!guestRoad.trim();
-  const guestAddress = `${guestRoad.trim()}, ${guestCity.trim()}, ${guestZipCode.trim() ? guestZipCode.trim() + ', ' : ''}${guestDistrict.trim()}, ${guestDivision.trim()}`;
-  const isGuestComplete = guestNameOk && guestPhoneOk && guestAddressOk && guestZipOk;
+  const guestAddressOk = !!guestAddress.trim();
+  const isGuestComplete = guestNameOk && guestPhoneOk && guestAddressOk;
 
   const cartCount = items.length;
   const missingSize = items.some(
@@ -288,90 +120,8 @@ export default function CartPage() {
 
   const trxOk = paymentMethod !== 'bkash' || !!trxId.trim();
   const canCheckout =
-    cartCount > 0 && !isPlacingOrder && trxOk && !missingSize && (user ? isProfileComplete : isGuestComplete);
+    cartCount > 0 && !isPlacingOrder && !missingSize && trxOk && (user ? isProfileComplete : isGuestComplete);
   const infoReady = user ? isProfileComplete : isGuestComplete;
-
-  const applyVoucher = async () => {
-    const code = voucherInput.trim().toUpperCase();
-    if (!code) {
-      setVoucher(null);
-      setVoucherMsg('');
-      try {
-        localStorage.removeItem('voucher_code');
-      } catch {}
-      return;
-    }
-
-    setVoucherLoading(true);
-    setVoucherMsg('');
-
-    try {
-      const { data, error } = await supabase
-        .from('discount_codes')
-        .select('code,discount_type,discount_value,min_purchase,max_uses,current_uses,valid_from,valid_until,is_active')
-        .eq('code', code)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!data) {
-        setVoucher(null);
-        setVoucherMsg('Invalid voucher code.');
-        return;
-      }
-
-      // validate
-      const now = new Date();
-      if (!data.is_active) {
-        setVoucher(null);
-        setVoucherMsg('Voucher is inactive.');
-        return;
-      }
-      if (data.valid_from && now < new Date(data.valid_from)) {
-        setVoucher(null);
-        setVoucherMsg('Voucher is not active yet.');
-        return;
-      }
-      if (data.valid_until && now > new Date(data.valid_until)) {
-        setVoucher(null);
-        setVoucherMsg('Voucher has expired.');
-        return;
-      }
-      const min = Number(data.min_purchase || 0);
-      if (min > 0 && subtotal < min) {
-        setVoucher(null);
-        setVoucherMsg(`Minimum purchase ৳${min.toLocaleString('en-BD')} required.`);
-        return;
-      }
-      const maxUses = Number(data.max_uses || 0);
-      const used = Number(data.current_uses || 0);
-      if (maxUses > 0 && used >= maxUses) {
-        setVoucher(null);
-        setVoucherMsg('Voucher usage limit reached.');
-        return;
-      }
-
-      setVoucher(data as VoucherRow);
-      setVoucherMsg(`Voucher ${code} applied.`);
-      try {
-        localStorage.setItem('voucher_code', code);
-      } catch {}
-    } catch (e: any) {
-      console.error(e);
-      setVoucher(null);
-      setVoucherMsg(e?.message || 'Could not validate voucher.');
-    } finally {
-      setVoucherLoading(false);
-    }
-  };
-
-  const clearVoucher = () => {
-    setVoucher(null);
-    setVoucherInput('');
-    setVoucherMsg('');
-    try {
-      localStorage.removeItem('voucher_code');
-    } catch {}
-  };
 
   const handleConfirmOrder = async () => {
     if (missingSize) {
@@ -383,7 +133,6 @@ export default function CartPage() {
       return;
     }
 
-    // ✅ Require TRX ID if bKash selected
     if (paymentMethod === 'bkash' && !trxId.trim()) {
       toast({
         title: 'TRX ID required',
@@ -432,18 +181,10 @@ export default function CartPage() {
         });
         return;
       }
-      if (!guestDivision.trim() || !guestDistrict.trim() || !guestCity.trim() || !guestRoad.trim()) {
+      if (!guestAddress.trim()) {
         toast({
           title: 'Address missing',
-          description: 'Please fill all required address fields.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      if (!guestZipOk) {
-        toast({
-          title: 'Invalid Zip Code',
-          description: 'Zip code should be 4 digits (e.g. 1230).',
+          description: 'Please enter your delivery address.',
           variant: 'destructive',
         });
         return;
@@ -460,7 +201,6 @@ export default function CartPage() {
         items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity, size: i.size ?? null })),
         deliveryLocation,
         shippingSpeed,
-        discountCode: voucher?.code || null,
         paymentMethod,
         trxId: paymentMethod === 'bkash' ? trxId.trim() : null,
         guest: user
@@ -468,12 +208,12 @@ export default function CartPage() {
           : {
               full_name: guestFullName.trim(),
               phone: normalizePhone(guestPhone),
-              division: guestDivision.trim(),
-              district: guestDistrict.trim(),
-              city: guestCity.trim(),
-              road: guestRoad.trim(),
-              zip_code: guestZipCode.trim(),
-              address: guestAddress,
+              division: EMPTY_ADDRESS_PLACEHOLDER,
+              district: EMPTY_ADDRESS_PLACEHOLDER,
+              city: EMPTY_ADDRESS_PLACEHOLDER,
+              road: guestAddress.trim(),
+              zip_code: '',
+              address: guestAddress.trim(),
             },
       };
 
@@ -497,11 +237,7 @@ export default function CartPage() {
             JSON.stringify({
               full_name: guestFullName.trim(),
               phone: normalizePhone(guestPhone),
-              division: guestDivision.trim(),
-              district: guestDistrict.trim(),
-              city: guestCity.trim(),
-              road: guestRoad.trim(),
-              zip_code: guestZipCode.trim(),
+              address: guestAddress.trim(),
             })
           );
         } catch {}
@@ -537,80 +273,25 @@ export default function CartPage() {
     }
   };
 
-  const handleContinueToPayment = () => {
-    if (!infoReady) {
-      toast({
-        title: 'Complete your details',
-        description: 'Please fill in your name, phone number, and address before continuing.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setCheckoutStep(2);
-  };
-
-  const handleContinueToConfirm = () => {
-    if (!trxOk) {
-      toast({
-        title: 'Payment details required',
-        description: 'Please enter your bKash TRX ID to continue.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (missingSize) {
-      toast({
-        title: 'Size required',
-        description: 'Select a size for each clothing item before continuing.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setCheckoutStep(3);
-  };
-
   const cartItemsPanel = (
-    <div className="space-y-6">
-      {/* Cart header actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="h-9 w-9 rounded-full bg-white border flex items-center justify-center shadow-sm">
             <ShoppingBag className="h-4 w-4 text-blue-900" />
           </div>
-          <div>
-            <div className="text-sm text-gray-600">Order Summary (অর্ডার সারাংশ)</div>
-            <div className="text-lg font-bold text-gray-900">
-              {cartCount} item{cartCount > 1 ? 's' : ''}
-            </div>
+          <div className="text-lg font-semibold text-gray-900">
+            {cartCount} item{cartCount > 1 ? 's' : ''} in cart
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Link href="/products">
-            <Button variant="outline" className="h-9">
-              Continue Shopping (শপিং চালিয়ে যান)
-            </Button>
-          </Link>
-          <Button
-            variant="ghost"
-            className="h-9 text-red-600 hover:text-red-700 hover:bg-red-50"
-            onClick={() => clearCart()}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Clear Cart (কার্ট খালি করুন)
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          className="h-9 text-red-600 hover:text-red-700 hover:bg-red-50"
+          onClick={() => clearCart()}
+        >
+          Clear cart
+        </Button>
       </div>
-
-      {missingSize && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Size required (সাইজ দরকার)</AlertTitle>
-          <AlertDescription className="text-xs">
-            Select a size for each clothing item to continue checkout.
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Cart Items Card */}
       <Card className="shadow-sm">
@@ -759,34 +440,6 @@ export default function CartPage() {
         </CardContent>
       </Card>
 
-      {/* Trust / info band */}
-      <Card className="shadow-sm border-blue-100">
-        <CardContent className="p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="h-9 w-9 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center">
-                <ShieldCheck className="h-5 w-5 text-blue-900" />
-              </div>
-              <div>
-                <div className="font-semibold text-gray-900">Reliable delivery (নির্ভরযোগ্য ডেলিভারি)</div>
-                <div className="text-sm text-gray-600">
-                  We confirm every order and deliver quickly. Keep your phone available for confirmation (অর্ডার নিশ্চিত করতে ফোন হাতে রাখুন)।
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
-              <div className="inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-lg border bg-white px-3 py-2 text-sm text-gray-700">
-                <CreditCard className="h-4 w-4 text-gray-500" />
-                COD / bKash (ক্যাশ / বিকাশ)
-              </div>
-              <div className="inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-lg border bg-white px-3 py-2 text-sm text-gray-700">
-                <Truck className="h-4 w-4 text-gray-500" />
-                Fast Shipping (দ্রুত শিপিং)
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 
@@ -835,34 +488,7 @@ export default function CartPage() {
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Header />
-
-      {/* Simple checkout header */}
-      <div className="border-b bg-white">
-        <div className="mx-auto w-full max-w-[1200px] px-4 md:px-6 py-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700">
-                <ShieldCheck className="h-4 w-4" />
-                Secure checkout (নিরাপদ চেকআউট)
-              </div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
-                Checkout (চেকআউট)
-              </h1>
-              <p className="text-sm text-gray-600">
-                Review your order (অর্ডার পর্যালোচনা)
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <StepPill active={checkoutStep >= 1} title="Details (বিস্তারিত)" icon={<User className="h-3.5 w-3.5" />} />
-              <StepPill active={checkoutStep >= 2} title="Payment (পেমেন্ট)" icon={<CreditCard className="h-3.5 w-3.5" />} />
-              <StepPill active={checkoutStep >= 3} title="Confirm (নিশ্চিতকরণ)" icon={<ShieldCheck className="h-3.5 w-3.5" />} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto w-full max-w-[1200px] px-4 md:px-6 pb-10 flex-1">
+      <div className="mx-auto w-full max-w-[1200px] px-4 md:px-6 py-10 flex-1">
         {items.length === 0 ? (
           <Card className="shadow-sm">
             <CardContent className="p-10 text-center space-y-4">
@@ -882,554 +508,247 @@ export default function CartPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
-            {checkoutStep === 1 && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
-                <div className="lg:col-span-2 order-1">
-                  <Card className="shadow-sm border-gray-200 overflow-hidden">
-                    <CardHeader className="bg-white border-b">
-                      <CardTitle className="text-base text-gray-900">
-                        Step 1: Contact & Address (ধাপ ১: যোগাযোগ ও ঠিকানা)
-                      </CardTitle>
-                      <div className="text-xs text-gray-500">Add your delivery details before payment (পেমেন্টের আগে ডেলিভারি তথ্য যোগ করুন)।</div>
-                      <div className="text-[11px] text-emerald-700 font-semibold">Secure checkout (নিরাপদ চেকআউট)</div>
-                    </CardHeader>
-                    <CardContent className="p-4 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-8">
+            <Card className="shadow-sm border-gray-200 overflow-hidden">
+              <CardHeader className="bg-white border-b">
+                <CardTitle className="text-xl font-semibold text-gray-900">অর্ডার করতে নিচের তথ্যগুলি দিন</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-5">
+                {missingSize && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Size required</AlertTitle>
+                    <AlertDescription className="text-xs">
+                      Select a size for each clothing item before placing the order.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-                  {/* Full Name */}
-                  <div className="rounded-xl border bg-gray-50/60 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                        <User className="h-4 w-4" /> Full Name (পূর্ণ নাম)
-                      </Label>
-                      {user ? (
-                        <Link href="/dashboard" className="text-xs text-blue-700 hover:underline flex items-center gap-1">
-                          <ExternalLink className="h-3 w-3" /> Edit (সম্পাদনা)
-                        </Link>
-                      ) : (
-                        <Link href="/login" className="text-xs text-blue-700 hover:underline flex items-center gap-1">
-                          <ExternalLink className="h-3 w-3" /> Sign in (optional) (ইচ্ছামত লগইন)
-                        </Link>
-                      )}
-                    </div>
-
-                    {user ? (
-                      <div className="text-sm font-semibold text-gray-900 pl-6">{profile?.full_name || '—'}</div>
-                    ) : (
-                      <div className="pl-6 space-y-2">
-                        <Input
-                          value={guestFullName}
-                          onChange={(e) => setGuestFullName(e.target.value)}
-                          placeholder="Your full name"
-                        />
-                        {!guestNameOk && guestFullName.trim() === '' && (
-                          <div className="text-xs text-gray-500">Name is required for delivery & invoice.</div>
-                        )}
-                      </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold text-gray-900">নাম</Label>
+                    {user && (
+                      <Link href="/dashboard" className="text-xs text-blue-700 hover:underline">
+                        Edit
+                      </Link>
                     )}
                   </div>
-
-                  {/* Contact */}
-                  <div className="rounded-xl border bg-gray-50/60 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                        <Phone className="h-4 w-4" /> Phone Number (ফোন নম্বর)
-                      </Label>
-                      {user ? (
-                        <Link href="/dashboard" className="text-xs text-blue-700 hover:underline flex items-center gap-1">
-                          <ExternalLink className="h-3 w-3" /> {hasPhone ? 'Edit (সম্পাদনা)' : 'Add (যোগ করুন)'}
-                        </Link>
-                      ) : (
-                        <Link href="/login" className="text-xs text-blue-700 hover:underline flex items-center gap-1">
-                          <ExternalLink className="h-3 w-3" /> Sign in (optional) (ইচ্ছামত লগইন)
-                        </Link>
-                      )}
-                    </div>
-
-                    {user ? (
-                      hasPhone ? (
-                        <div className="text-sm font-semibold text-gray-900 pl-6">{profile?.phone}</div>
-                      ) : (
-                        <Alert variant="destructive" className="mt-2">
-                          <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Phone required (ফোন নম্বর দরকার)</AlertTitle>
-                        <AlertDescription className="text-xs">
-                          Add your phone number in Profile to place an order (অর্ডার দিতে ফোন নম্বর দিন)।
-                        </AlertDescription>
-                      </Alert>
-                      )
-                    ) : (
-                      <div className="pl-6 space-y-2">
-                        <Input
-                          value={guestPhone}
-                          onChange={(e) => setGuestPhone(e.target.value)}
-                          placeholder="01XXXXXXXXX"
-                          inputMode="tel"
-                        />
-                        <div className="text-xs text-gray-500">We'll call this number to confirm your order (অর্ডার নিশ্চিত করতে কল করা হবে)।</div>
-                        {!guestPhoneOk && guestPhone.trim() && (
-                          <div className="text-xs text-red-600">Enter a valid BD phone (01XXXXXXXXX).</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Address */}
-                  <div className="rounded-xl border bg-gray-50/60 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                        <Home className="h-4 w-4" /> Delivery Address (ডেলিভারি ঠিকানা)
-                      </Label>
-                      {user ? (
-                        <Link href="/dashboard" className="text-xs text-blue-700 hover:underline flex items-center gap-1">
-                          <ExternalLink className="h-3 w-3" /> {hasAddress ? 'Edit (সম্পাদনা)' : 'Add (যোগ করুন)'}
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-gray-500">Fill the address below (নিচে ঠিকানা লিখুন)</span>
-                      )}
-                    </div>
-
-                    {user ? (
-                      hasAddress ? (
-                        <div className="text-sm text-gray-900 pl-6 whitespace-pre-wrap leading-relaxed">
-                          {/* @ts-ignore */}
-                          {profile?.address}
-                        </div>
-                      ) : (
-                        <Alert variant="destructive" className="mt-2">
-                          <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Address required (ঠিকানা দরকার)</AlertTitle>
-                        <AlertDescription className="text-xs">
-                          Add your delivery address in Profile to place an order (অর্ডার দিতে ঠিকানা দিন)।
-                        </AlertDescription>
-                      </Alert>
-                      )
-                    ) : (
-                      <div className="pl-6 space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-xs">Division (বিভাগ) *</Label>
-                            <Input value={guestDivision} onChange={(e) => setGuestDivision(e.target.value)} placeholder="Dhaka" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">District (জেলা) *</Label>
-                            <Input value={guestDistrict} onChange={(e) => setGuestDistrict(e.target.value)} placeholder="Dhaka" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">City / Thana (শহর / থানা) *</Label>
-                            <Input value={guestCity} onChange={(e) => setGuestCity(e.target.value)} placeholder="Dhanmondi" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Road / House (রোড / বাসা) *</Label>
-                            <Input value={guestRoad} onChange={(e) => setGuestRoad(e.target.value)} placeholder="Road 10, House 12" />
-                          </div>
-                          <div className="space-y-1 sm:col-span-2">
-                            <Label className="text-xs">Zip Code (পোস্ট কোড)</Label>
-                            <Input value={guestZipCode} onChange={(e) => setGuestZipCode(e.target.value)} placeholder="1205" inputMode="numeric" />
-                          </div>
-                        </div>
-
-                        {!guestZipOk && guestZipCode.trim() && (
-                          <div className="text-xs text-red-600">Zip code must be 4 digits.</div>
-                        )}
-
-                        <div className="rounded-lg border bg-white p-3 text-xs text-gray-700">
-                          <div className="font-semibold text-gray-900 mb-1">Address Preview (ঠিকানার প্রিভিউ)</div>
-                          <div className="whitespace-pre-wrap">{guestAddress}</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
                   {user ? (
-                    !isProfileComplete && (
-                      <Alert variant="destructive" className="py-2">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Profile incomplete (প্রোফাইল অসম্পূর্ণ)</AlertTitle>
-                        <AlertDescription className="text-xs">
-                          Add phone number and address to place an order (ফোন নম্বর ও ঠিকানা দিন)।
-                        </AlertDescription>
-                      </Alert>
-                    )
+                    <Input value={profile?.full_name || ''} readOnly className="bg-gray-50" placeholder="আপনার নাম" />
                   ) : (
-                    !isGuestComplete && (
-                      <Alert variant="destructive" className="py-2">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Missing details (তথ্য অসম্পূর্ণ)</AlertTitle>
-                        <AlertDescription className="text-xs">
-                          Add your phone number and delivery address to place an order as a guest (গেস্ট হিসেবে অর্ডার দিতে তথ্য দিন)।
-                        </AlertDescription>
-                      </Alert>
-                    )
+                    <Input
+                      value={guestFullName}
+                      onChange={(e) => setGuestFullName(e.target.value)}
+                      placeholder="আপনার নাম"
+                    />
                   )}
-
-                  {!user && (
-                    <Alert className="py-2">
-                      <AlertTitle>Guest checkout enabled (গেস্ট চেকআউট সক্রিয়)</AlertTitle>
-                      <AlertDescription className="text-xs">
-                        You can order without logging in. If you sign in, your saved profile will be used automatically (লগইন ছাড়াই অর্ডার করা যাবে)।
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <div className="flex justify-end">
-                    <Button
-                      className="bg-blue-900 hover:bg-blue-800 h-11 px-6"
-                      onClick={handleContinueToPayment}
-                      disabled={!infoReady}
-                    >
-                      Continue to Payment (পেমেন্টে যান)
-                    </Button>
-                  </div>
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="lg:col-span-1 order-2 lg:sticky lg:top-24 lg:self-start">
-                {cartItemsPanel}
-              </div>
-            </div>
-            )}
-
-            {checkoutStep === 2 && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
-                <div className="lg:col-span-2 order-1">
-                  <Card className="shadow-sm border-gray-200 overflow-hidden">
-                    <CardHeader className="bg-white border-b">
-                      <CardTitle className="text-base text-gray-900">
-                        Step 2: Payment & Shipping (ধাপ ২: পেমেন্ট ও শিপিং)
-                      </CardTitle>
-                      <div className="text-xs text-gray-500">Choose how you want to pay and where to deliver (পেমেন্ট ও ডেলিভারি বেছে নিন)।</div>
-                      <div className="text-[11px] text-emerald-700 font-semibold">Secure checkout (নিরাপদ চেকআউট)</div>
-                    </CardHeader>
-
-                    <CardContent className="p-4 space-y-4">
-
-                      {/* ✅ Payment selection */}
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                          <CreditCard className="h-4 w-4" /> Payment Method (পেমেন্ট পদ্ধতি)
-                        </Label>
-
-                        <RadioGroup
-                          value={paymentMethod}
-                          onValueChange={(val: 'cod' | 'bkash') => setPaymentMethod(val)}
-                          className="grid grid-cols-1 gap-2"
-                        >
-                          {/* COD */}
-                          <PaymentOption
-                            active={paymentMethod === 'cod'}
-                            title="Cash on Delivery (ক্যাশ অন ডেলিভারি)"
-                            subtitle="Pay when you receive the product (পণ্য পাওয়ার পরে পরিশোধ)"
-                            onClick={() => setPaymentMethod('cod')}
-                            left={
-                              <div className="h-9 w-9 rounded-lg border bg-white flex items-center justify-center">
-                                <Banknote className="h-5 w-5 text-gray-700" />
-                              </div>
-                            }
-                          >
-                            <RadioGroupItem value="cod" id="cod" />
-                          </PaymentOption>
-
-                          {/* bKash */}
-                          <PaymentOption
-                            active={paymentMethod === 'bkash'}
-                            title="bKash (বিকাশ)"
-                            subtitle="Pay now, then provide TRX ID (পেমেন্ট করে ট্রান্সেকশন আইডি দিন)"
-                            onClick={() => setPaymentMethod('bkash')}
-                            left={
-                              <div className="h-9 w-9 rounded-lg border bg-white flex items-center justify-center overflow-hidden">
-                                <SafeImage
-                                  src={BKASH_LOGO_PATH}
-                                  alt="bKash"
-                                  width={24}
-                                  height={24}
-                                  className="h-6 w-6 object-contain"
-                                />
-                              </div>
-                            }
-                          >
-                            <RadioGroupItem value="bkash" id="bkash" />
-                          </PaymentOption>
-                        </RadioGroup>
-
-                        {paymentMethod === 'bkash' && (
-                          <div className="mt-2 rounded-xl border bg-white p-3 space-y-2">
-                            <div className="text-sm font-semibold text-gray-900">Send bKash to (বিকাশ পাঠান):</div>
-                            <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-3 py-2">
-                              <div className="text-sm font-bold text-gray-900">{BKASH_NUMBER}</div>
-                              <div className="text-xs text-gray-500">bKash</div>
-                            </div>
-
-                            <div className="space-y-1.5">
-                              <Label className="text-sm font-semibold text-gray-700">TRX ID (ট্রান্সেকশন আইডি)</Label>
-                              <input
-                                value={trxId}
-                                onChange={(e) => setTrxId(e.target.value)}
-                                placeholder="Enter bKash Transaction ID (বিকাশ ট্রান্সেকশন আইডি দিন)"
-                                className="w-full h-10 rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue-600"
-                              />
-                              <div className="text-xs text-gray-500">
-                                Please provide the transaction ID to confirm your order (অর্ডার নিশ্চিত করতে আইডি দিন)।
-                              </div>
-                            </div>
-
-                            <Alert className="py-2">
-                              <AlertTitle className="text-sm">Note (নোট)</AlertTitle>
-                              <AlertDescription className="text-xs">
-                                Orders with bKash will be verified using your TRX ID (ট্রান্সেকশন আইডি দিয়ে যাচাই হবে)।
-                              </AlertDescription>
-                            </Alert>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Shipping selection */}
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2 text-gray-700 font-semibold">
-                          <MapPin className="h-4 w-4" /> Shipping Area (ডেলিভারি এলাকা)
-                        </Label>
-
-                        <RadioGroup
-                          value={deliveryLocation}
-                          onValueChange={(val: 'inside' | 'outside') => setDeliveryLocation(val)}
-                          className="grid grid-cols-1 gap-2"
-                        >
-                          {/* Inside */}
-                          <div
-                            onClick={() => setDeliveryLocation('inside')}
-                            className={`rounded-xl border p-3 cursor-pointer transition-all ${
-                              deliveryLocation === 'inside'
-                                ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600 shadow-sm'
-                                : 'bg-white hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 pointer-events-none">
-                                <RadioGroupItem value="inside" id="inside" />
-                                <Label htmlFor="inside" className="cursor-pointer font-semibold text-gray-900">
-                                  Inside Dhaka (ঢাকার ভিতরে)
-                                </Label>
-                              </div>
-                              <div className="text-sm font-bold text-gray-900">{fmtBDT(SHIPPING_INSIDE_DHAKA)}</div>
-                            </div>
-                            <div className="text-xs text-gray-600 mt-1 pl-6">Standard delivery inside Dhaka city (ঢাকার ভিতরে ডেলিভারি)।</div>
-                          </div>
-
-                          {/* Outside */}
-                          <div
-                            onClick={() => setDeliveryLocation('outside')}
-                            className={`rounded-xl border p-3 cursor-pointer transition-all ${
-                              deliveryLocation === 'outside'
-                                ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600 shadow-sm'
-                                : 'bg-white hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 pointer-events-none">
-                                <RadioGroupItem value="outside" id="outside" />
-                                <Label htmlFor="outside" className="cursor-pointer font-semibold text-gray-900">
-                                  Outside Dhaka (ঢাকার বাইরে)
-                                </Label>
-                              </div>
-                              <div className="text-sm font-bold text-gray-900">{fmtBDT(SHIPPING_OUTSIDE_DHAKA)}</div>
-                            </div>
-                            <div className="text-xs text-gray-600 mt-1 pl-6">Courier delivery to other districts (অন্য জেলায় কুরিয়ার ডেলিভারি)।</div>
-                          </div>
-                        </RadioGroup>
-
-                        <div className="text-xs text-gray-500 flex items-center gap-2">
-                          <Sparkles className="h-3.5 w-3.5" />
-                          Estimated delivery (আনুমানিক ডেলিভারি): <span className="font-semibold text-gray-700">{etaRange}</span>
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      {/* Totals */}
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between text-gray-700">
-                          <span>Subtotal (সাবটোটাল)</span>
-                          <span className="font-semibold">{fmtBDT(subtotal)}</span>
-                        </div>
-
-                        {/* Voucher */}
-                        <div className="rounded-xl border bg-white p-3 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-gray-900">Voucher (ভাউচার)</span>
-                            {voucher && voucherDiscount > 0 && (
-                              <span className="text-xs font-bold text-green-700">Applied (প্রযোজ্য)</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={voucherInput}
-                              onChange={(e) => setVoucherInput(e.target.value)}
-                              placeholder="Enter voucher code (ভাউচার কোড দিন)"
-                              className="bg-white"
-                            />
-                            {voucher ? (
-                              <Button type="button" variant="outline" className="bg-white" onClick={clearVoucher}>
-                                Remove (সরান)
-                              </Button>
-                            ) : (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="bg-white"
-                                onClick={() => void applyVoucher()}
-                                disabled={voucherLoading || !voucherInput.trim()}
-                              >
-                                {voucherLoading ? '...' : 'Apply (প্রয়োগ করুন)'}
-                              </Button>
-                            )}
-                          </div>
-                          {voucherMsg && (
-                            <div className={`text-xs ${voucher ? 'text-green-700' : 'text-red-600'}`}>{voucherMsg}</div>
-                          )}
-                          <div className="text-[11px] text-gray-500">Discount applies to product subtotal (shipping excluded) (শুধু পণ্যের মূল্যে ছাড়)।</div>
-                        </div>
-
-                        {voucherDiscount > 0 && (
-                          <div className="flex justify-between text-gray-700">
-                            <span className="font-semibold text-green-700">Voucher Discount (ভাউচার ছাড়) {voucher?.code ? `(${voucher.code})` : ''}</span>
-                            <span className="font-semibold text-green-700">- {fmtBDT(voucherDiscount)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between text-gray-700">
-                          <span>Shipping (শিপিং)</span>
-                          <span className="font-semibold">{fmtBDT(shippingCost)}</span>
-                        </div>
-                        <Separator className="my-2" />
-                        <div className="flex justify-between text-lg font-extrabold text-blue-900">
-                          <span>Total (মোট)</span>
-                          <span>{fmtBDT(total)}</span>
-                        </div>
-                        <div className="text-xs text-gray-500 flex items-center gap-2">
-                          <Truck className="h-3.5 w-3.5" />
-                          {paymentMethod === 'cod'
-                            ? 'Cash on Delivery available (ক্যাশ অন ডেলিভারি উপলব্ধ)'
-                            : 'bKash payment selected (বিকাশ পেমেন্ট নির্বাচন করা হয়েছে)'}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                        <Button variant="outline" className="h-11" onClick={() => setCheckoutStep(1)}>
-                          Back to Details (বিস্তারিত এ ফিরে যান)
-                        </Button>
-                        <Button
-                          className="flex-1 bg-blue-900 hover:bg-blue-800 h-11"
-                          onClick={handleContinueToConfirm}
-                          disabled={!trxOk || missingSize}
-                        >
-                          Continue to Review (পর্যালোচনায় যান)
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
                 </div>
-                <div className="lg:col-span-1 order-2 lg:sticky lg:top-24 lg:self-start">
-                  {cartItemsPanel}
-                </div>
-              </div>
-            )}
 
-            {checkoutStep === 3 && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
-                <div className="lg:col-span-2 order-1">
-                  <Card className="shadow-sm border-gray-200 overflow-hidden">
-                    <CardHeader className="bg-white border-b">
-                      <CardTitle className="text-base text-gray-900">
-                        Step 3: Review & Confirm (ধাপ ৩: পর্যালোচনা ও নিশ্চিতকরণ)
-                      </CardTitle>
-                      <div className="text-xs text-gray-500">Review everything before placing your order (অর্ডার দেওয়ার আগে সবকিছু দেখুন)।</div>
-                      <div className="text-[11px] text-emerald-700 font-semibold">Secure checkout (নিরাপদ চেকআউট)</div>
-                    </CardHeader>
-
-                    <CardContent className="p-4 space-y-4">
-                      <div className="rounded-xl border bg-gray-50/60 p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="text-sm font-semibold text-gray-800">Contact & Address (যোগাযোগ ও ঠিকানা)</div>
-                          <Button variant="outline" size="sm" className="h-8" onClick={() => setCheckoutStep(1)}>
-                            Edit (সম্পাদনা)
-                          </Button>
-                        </div>
-                        <div className="text-sm text-gray-700 space-y-1">
-                          <div><span className="font-semibold">Name (নাম):</span> {user ? profile?.full_name || '—' : guestFullName}</div>
-                          <div><span className="font-semibold">Phone (ফোন):</span> {user ? profile?.phone || '—' : normalizePhone(guestPhone)}</div>
-                          <div className="whitespace-pre-wrap">
-                            <span className="font-semibold">Address (ঠিকানা):</span>{' '}
-                            {user ? (profile as any)?.address || '—' : guestAddress}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border bg-gray-50/60 p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="text-sm font-semibold text-gray-800">Payment & Shipping (পেমেন্ট ও শিপিং)</div>
-                          <Button variant="outline" size="sm" className="h-8" onClick={() => setCheckoutStep(2)}>
-                            Edit (সম্পাদনা)
-                          </Button>
-                        </div>
-                        <div className="text-sm text-gray-700 space-y-1">
-                          <div><span className="font-semibold">Payment (পেমেন্ট):</span> {paymentMethod === 'cod' ? 'Cash on Delivery (ক্যাশ অন ডেলিভারি)' : 'bKash (বিকাশ)'}</div>
-                          {paymentMethod === 'bkash' && (
-                            <div><span className="font-semibold">TRX ID (ট্রান্সেকশন আইডি):</span> {trxId || '—'}</div>
-                          )}
-                          <div><span className="font-semibold">Shipping (শিপিং):</span> {deliveryLocation === 'inside' ? 'Inside Dhaka (ঢাকার ভিতরে)' : 'Outside Dhaka (ঢাকার বাইরে)'}</div>
-                          <div><span className="font-semibold">ETA (ডেলিভারি সময়):</span> {etaRange}</div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border bg-white p-4 space-y-2 text-sm">
-                        <div className="flex justify-between text-gray-700">
-                          <span>Subtotal (সাবটোটাল)</span>
-                          <span className="font-semibold">{fmtBDT(subtotal)}</span>
-                        </div>
-                        {voucherDiscount > 0 && (
-                          <div className="flex justify-between text-gray-700">
-                            <span className="font-semibold text-green-700">Voucher Discount (ভাউচার ছাড়) {voucher?.code ? `(${voucher.code})` : ''}</span>
-                            <span className="font-semibold text-green-700">- {fmtBDT(voucherDiscount)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between text-gray-700">
-                          <span>Shipping (শিপিং)</span>
-                          <span className="font-semibold">{fmtBDT(shippingCost)}</span>
-                        </div>
-                        <Separator className="my-2" />
-                        <div className="flex justify-between text-lg font-extrabold text-blue-900">
-                          <span>Total (মোট)</span>
-                          <span>{fmtBDT(total)}</span>
-                        </div>
-                      </div>
-
-                      {!user && (
-                        <Alert className="py-2">
-                        <AlertTitle>Guest checkout enabled (গেস্ট চেকআউট সক্রিয়)</AlertTitle>
-                        <AlertDescription className="text-xs">
-                          You can order without logging in. If you sign in, your saved profile will be used automatically (লগইন ছাড়াই অর্ডার করা যাবে)।
-                        </AlertDescription>
-                      </Alert>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold text-gray-900">মোবাইল নাম্বার</Label>
+                    {user && (
+                      <Link href="/dashboard" className="text-xs text-blue-700 hover:underline">
+                        Edit
+                      </Link>
                     )}
+                  </div>
+                  {user ? (
+                    <Input value={profile?.phone || ''} readOnly className="bg-gray-50" placeholder="01XXXXXXXXX" />
+                  ) : (
+                    <Input
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                      placeholder="01XXXXXXXXX"
+                      inputMode="tel"
+                    />
+                  )}
+                  {!user && !guestPhoneOk && guestPhone.trim() && (
+                    <div className="text-xs text-red-600">Enter a valid BD phone (01XXXXXXXXX).</div>
+                  )}
+                </div>
 
-                      <Button
-                        className="w-full bg-blue-900 hover:bg-blue-800 h-11 text-base shadow-sm"
-                        onClick={handleConfirmOrder}
-                        disabled={!canCheckout}
-                      >
-                        {isPlacingOrder ? 'Processing... (প্রসেস হচ্ছে)' : 'Confirm Order (অর্ডার নিশ্চিত করুন)'}
-                      </Button>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold text-gray-900">ঠিকানা</Label>
+                    {user && (
+                      <Link href="/dashboard" className="text-xs text-blue-700 hover:underline">
+                        Edit
+                      </Link>
+                    )}
+                  </div>
+                  {user ? (
+                    <Textarea
+                      value={(profile as any)?.address || ''}
+                      readOnly
+                      rows={3}
+                      className="bg-gray-50"
+                      placeholder="আপনার বাসার সম্পূর্ণ ঠিকানা"
+                    />
+                  ) : (
+                    <Textarea
+                      value={guestAddress}
+                      onChange={(e) => setGuestAddress(e.target.value)}
+                      rows={3}
+                      placeholder="আপনার বাসার সম্পূর্ণ ঠিকানা"
+                    />
+                  )}
+                </div>
 
-                      <div className="text-center text-xs text-gray-500">
-                        By confirming, you agree to be contacted to verify your order (অর্ডার যাচাইয়ের জন্য যোগাযোগ করা হবে)।
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold text-gray-900">অর্ডার নোট</Label>
+                  <Textarea
+                    value={orderNote}
+                    onChange={(e) => setOrderNote(e.target.value)}
+                    rows={2}
+                    placeholder="স্পেশাল কিছু বলতে চাইলে লিখুন (অপশনাল)"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold text-gray-900">ডেলিভারি এলাকা</Label>
+                  <RadioGroup
+                    value={deliveryLocation}
+                    onValueChange={(val: 'inside' | 'outside') => setDeliveryLocation(val)}
+                    className="grid gap-3"
+                  >
+                    <div
+                      onClick={() => setDeliveryLocation('inside')}
+                      className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer ${
+                        deliveryLocation === 'inside' ? 'border-emerald-500 bg-emerald-50' : 'bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <RadioGroupItem value="inside" id="inside" />
+                        <Label htmlFor="inside" className="cursor-pointer font-semibold text-gray-900">
+                          ঢাকা সিটির ভিতরে
+                        </Label>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div className="text-lg font-bold text-gray-900">{fmtBDT(SHIPPING_INSIDE_DHAKA)}</div>
+                    </div>
+
+                    <div
+                      onClick={() => setDeliveryLocation('outside')}
+                      className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer ${
+                        deliveryLocation === 'outside' ? 'border-emerald-500 bg-emerald-50' : 'bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <RadioGroupItem value="outside" id="outside" />
+                        <Label htmlFor="outside" className="cursor-pointer font-semibold text-gray-900">
+                          ঢাকা সিটির বাইরে
+                        </Label>
+                      </div>
+                      <div className="text-lg font-bold text-gray-900">{fmtBDT(SHIPPING_OUTSIDE_DHAKA)}</div>
+                    </div>
+                  </RadioGroup>
                 </div>
-                <div className="lg:col-span-1 order-2 lg:sticky lg:top-24 lg:self-start">
-                  {cartItemsPanel}
+
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold text-gray-900">পেমেন্ট পদ্ধতি</Label>
+                  <RadioGroup
+                    value={paymentMethod}
+                    onValueChange={(val: 'cod' | 'bkash') => setPaymentMethod(val)}
+                    className="grid gap-3"
+                  >
+                    <div
+                      onClick={() => setPaymentMethod('cod')}
+                      className={`flex flex-col gap-2 rounded-xl border p-4 cursor-pointer ${
+                        paymentMethod === 'cod' ? 'border-emerald-500 bg-emerald-50' : 'bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <RadioGroupItem value="cod" id="cod" />
+                          <Label htmlFor="cod" className="cursor-pointer font-semibold text-gray-900">
+                            ক্যাশ অন ডেলিভারি (COD)
+                          </Label>
+                        </div>
+                        <span className="text-sm text-gray-600">পণ্য হাতে পেয়ে পরিশোধ</span>
+                      </div>
+                      {paymentMethod === 'cod' && (
+                        <div className="text-sm text-gray-700">
+                          ডেলিভারি ম্যানের কাছে পণ্য দেখে টাকা প্রদান করুন।
+                        </div>
+                      )}
+                    </div>
+
+                    <div
+                      onClick={() => setPaymentMethod('bkash')}
+                      className={`flex flex-col gap-3 rounded-xl border p-4 cursor-pointer ${
+                        paymentMethod === 'bkash' ? 'border-emerald-500 bg-emerald-50' : 'bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <RadioGroupItem value="bkash" id="bkash" />
+                          <Label htmlFor="bkash" className="cursor-pointer font-semibold text-gray-900">
+                            বিকাশ
+                          </Label>
+                        </div>
+                        <span className="text-sm text-gray-600">আগে পেমেন্ট করুন</span>
+                      </div>
+                      {paymentMethod === 'bkash' && (
+                        <div className="space-y-3 rounded-lg border border-emerald-100 bg-white p-3">
+                          <div className="text-sm font-semibold text-gray-900">
+                            এই নম্বরে টাকা পাঠান: <span className="font-bold">{BKASH_NUMBER}</span>
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            টাকা পাঠানোর পর আপনার বিকাশ TRX ID লিখুন।
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold text-gray-900">TRX ID</Label>
+                            <Input
+                              value={trxId}
+                              onChange={(e) => setTrxId(e.target.value)}
+                              placeholder="Transaction ID দিন"
+                            />
+                            {!trxOk && (
+                              <div className="text-xs text-red-600">TRX ID দিন যাতে আপনার পেমেন্ট যাচাই করা যায়।</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </RadioGroup>
                 </div>
-              </div>
-            )}
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Subtotal</span>
+                    <span className="font-semibold">{fmtBDT(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Shipping</span>
+                    <span className="font-semibold">{fmtBDT(shippingCost)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between text-lg font-bold text-gray-900">
+                    <span>Total</span>
+                    <span>{fmtBDT(total)}</span>
+                  </div>
+                </div>
+
+                {!infoReady && (
+                  <div className="text-xs text-red-600">Please fill in name, phone, and address to continue.</div>
+                )}
+                {paymentMethod === 'bkash' && !trxOk && (
+                  <div className="text-xs text-red-600">Please provide the bKash TRX ID to continue.</div>
+                )}
+
+                <Button
+                  className="w-full bg-blue-900 hover:bg-blue-800 h-11 text-base"
+                  onClick={handleConfirmOrder}
+                  disabled={!canCheckout}
+                >
+                  {isPlacingOrder ? 'Processing...' : 'Confirm Order'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <div className="lg:sticky lg:top-24 lg:self-start space-y-4">
+              {cartItemsPanel}
+            </div>
           </div>
         )}
       </div>
