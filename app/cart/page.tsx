@@ -118,7 +118,6 @@ export default function CartPage() {
       isClothingCategory(item.product?.category_name, item.product?.category_slug) && !String(item.size || '').trim()
   );
 
-  const trxOk = paymentMethod !== 'bkash' || !!trxId.trim();
   const canCheckout =
     cartCount > 0 && !isPlacingOrder && !missingSize && trxOk && (user ? isProfileComplete : isGuestComplete);
   const infoReady = user ? isProfileComplete : isGuestComplete;
@@ -202,7 +201,6 @@ export default function CartPage() {
         deliveryLocation,
         shippingSpeed,
         paymentMethod,
-        trxId: paymentMethod === 'bkash' ? trxId.trim() : null,
         guest: user
           ? null
           : {
