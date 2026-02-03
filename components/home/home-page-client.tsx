@@ -546,7 +546,7 @@ export default function HomePageClient({
     if (!carouselApi || heroFeaturedImages.length <= 1) return;
     const id = window.setInterval(() => {
       carouselApi.scrollNext();
-    }, 2000);
+    }, 4000);
     return () => window.clearInterval(id);
   }, [carouselApi, heroFeaturedImages.length]);
 
